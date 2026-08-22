@@ -52,6 +52,20 @@ CREATE TABLE IF NOT EXISTS DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG (
     NOTIFIED          BOOLEAN       DEFAULT FALSE
 );
 
+/* CHECK_ID is populated from this sequence, NOT from the IDENTITY default.
+
+   Snowflake IDENTITY allocates ranges per session and is NOT monotonic across
+   sessions: a row inserted later can receive a LOWER id than one inserted
+   earlier. Observed here - the newest row got CHECK_ID 3 while older rows had
+   reached 105. Anything that finds "the latest row" with ORDER BY CHECK_ID DESC
+   therefore reads the WRONG ROW, and in this design that meant the alert
+   silently did not fire while reporting success. See FINDINGS.md F8.
+
+   The sequence makes the id known BEFORE the insert, so nothing has to guess
+   afterwards. */
+CREATE SEQUENCE IF NOT EXISTS DCM_ADMIN.AUDIT.SEQ_DCM_CHECK_ID
+    START = 1000 INCREMENT = 1;
+
 COMMENT ON TABLE DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG IS
   'Append-only. One row per PLAN executed as a drift check. Answers "when did this drift start?" - the question the dashboard-freeze incident turned on, and the one DCM cannot answer natively.';
 
@@ -133,7 +147,11 @@ DECLARE
     v_n        INTEGER DEFAULT 0;
     v_err      STRING  DEFAULT NULL;
     v_qid      STRING  DEFAULT NULL;
+    v_check_id NUMBER;
 BEGIN
+    /* Claim the id up front so the caller never has to work out which row we
+       just wrote. */
+    SELECT DCM_ADMIN.AUDIT.SEQ_DCM_CHECK_ID.NEXTVAL INTO :v_check_id;
     /* NOTE: plain PLAN, never PLAN DELTA. DELTA skips definitions it believes
        unchanged and by documentation cannot see out-of-band edits - which is
        exactly what a drift check is looking for. It would report CLEAN over a
@@ -162,9 +180,9 @@ BEGIN
     END;
 
     INSERT INTO DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-        (PROJECT_NAME, SOURCE_PATH, CHECKED_AT_UTC, DURATION_MS,
+        (CHECK_ID, PROJECT_NAME, SOURCE_PATH, CHECKED_AT_UTC, DURATION_MS,
          VERDICT, ENTITIES_CHANGED, CHANGESET, ERROR_MESSAGE, PLAN_QUERY_ID)
-    SELECT :PROJECT_NAME, :SOURCE_PATH, :v_start,
+    SELECT :v_check_id, :PROJECT_NAME, :SOURCE_PATH, :v_start,
            DATEDIFF('millisecond', :v_start, SYSDATE()),
            :v_verdict, :v_n,
            /* Store ONLY the changeset array, not the whole plan result. The
@@ -174,8 +192,9 @@ BEGIN
            IFF(:v_json IS NULL, NULL, PARSE_JSON(:v_json):changeset),
            :v_err, :v_qid;
 
-    RETURN :v_verdict || ' | entities=' || :v_n::STRING
-           || COALESCE(' | ' || :v_err, '');
+    /* Pipe-delimited, id first, fixed positions - the wrapper parses field 1
+       rather than re-querying and hoping it finds the same row. */
+    RETURN :v_check_id::STRING || '|' || :v_verdict || '|' || :v_n::STRING;
 END;
 $$;
 

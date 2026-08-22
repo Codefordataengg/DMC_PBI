@@ -244,3 +244,38 @@ One dropped column in `STG` can mask unrelated drift in `PRE`.
 redeploy, reload. There is no automated path back. For a table holding irreplaceable data
 that is a planned maintenance task, not a 3am fix — which is another reason `DEPLOY` must
 never be scheduled.
+
+---
+
+## F8 — Snowflake `IDENTITY` is not monotonic across sessions (2026-08-23, verified)
+
+**An implementation finding, not a DCM one — but it silently disabled the alert, which is
+the exact failure shape this project exists to catch.**
+
+`SP_DCM_DRIFT_CHECK_AND_ALERT` found "the row just written" with
+`ORDER BY CHECK_ID DESC LIMIT 1`. That is wrong. Observed in the log:
+
+```
+CHECK_ID  VERDICT  CHECKED_AT_UTC
+       3  DRIFT    2026-08-22 15:07:52   ← newest row
+     105  CLEAN    2026-08-22 14:24:38   ← older row, higher id
+```
+
+Snowflake `IDENTITY` / `AUTOINCREMENT` allocates **ranges per session**. A row inserted later
+can receive a lower id than one inserted earlier. Ordering by it to find the most recent row
+returns whatever row holds the highest number, which is not the same question.
+
+**What it did.** The wrapper read row 105, saw `CLEAN`, took the no-alert branch, and returned
+`DRIFT | entities=1 | no alert sent`. Drift was correctly detected, correctly logged — and
+nobody was told. The return string reported the suppression as though it were a normal outcome.
+
+**The fix.** `SEQ_DCM_CHECK_ID`, claimed with `NEXTVAL` *before* the insert. The check
+procedure returns the id it used; the wrapper parses field 1 rather than re-querying. Nothing
+guesses which row it just wrote.
+
+**The general rule for this repo:** never use an `IDENTITY` column to establish recency, in
+any table. If code needs to know which row it just inserted, it must decide the key beforehand.
+
+**How it was caught:** only because the git-sourced check was re-tested end to end after being
+repointed, rather than assumed to behave like the stage-sourced one it was copied from. A test
+that only asserted the verdict — and not that the alert *fired* — would have passed.

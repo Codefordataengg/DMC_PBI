@@ -101,10 +101,13 @@ BEGIN
     /* 1. Do the check. This writes the durable row. */
     CALL DCM_ADMIN.AUDIT.SP_DCM_DRIFT_CHECK(:PROJECT_NAME, :SOURCE_PATH) INTO :v_result;
 
-    SELECT CHECK_ID, VERDICT
-      INTO :v_check_id, :v_verdict
-    FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-    ORDER BY CHECK_ID DESC LIMIT 1;
+    /* Take the id the check itself reports. Do NOT look up "the latest row":
+       CHECK_ID is not monotonic across sessions (F8), so ORDER BY CHECK_ID DESC
+       can return an older row - which silently suppressed a DRIFT alert while
+       returning 'no alert sent' as though nothing was wrong. */
+    v_check_id := SPLIT_PART(:v_result, '|', 1)::NUMBER;
+    v_verdict  := SPLIT_PART(:v_result, '|', 2);
+    v_result   := :v_verdict || ' | entities=' || SPLIT_PART(:v_result, '|', 3);
 
     IF (:v_verdict = 'CLEAN') THEN
         RETURN :v_result || ' | no alert sent';
@@ -157,16 +160,28 @@ AS
 
    Query this from outside, or schedule it on a different cadence.           */
 
+/* A finding stays outstanding until someone deals with it. ACKNOWLEDGED_AT is
+   how a human closes one WITHOUT claiming an alert was sent - marking a test row
+   NOTIFIED=TRUE would be a lie, and lying to the audit trail to silence a
+   dashboard is how monitors stop meaning anything. */
+ALTER TABLE DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
+    ADD COLUMN IF NOT EXISTS ACKNOWLEDGED_AT TIMESTAMP_NTZ(9);
+ALTER TABLE DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
+    ADD COLUMN IF NOT EXISTS ACKNOWLEDGED_NOTE VARCHAR(1000);
+
 CREATE OR REPLACE VIEW DCM_ADMIN.AUDIT.V_DCM_MONITOR_HEALTH AS
 SELECT
     (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG)      AS LAST_CHECK_UTC,
     DATEDIFF('hour',
              (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG),
              SYSDATE())                                                       AS HOURS_SINCE_LAST_CHECK,
+    /* ORDER BY CHECKED_AT_UTC, never CHECK_ID - see FINDINGS.md F8. The same
+       mistake in the alert procedure silently suppressed a DRIFT notification. */
     (SELECT VERDICT FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-      ORDER BY CHECK_ID DESC LIMIT 1)                                         AS LAST_VERDICT,
+      ORDER BY CHECKED_AT_UTC DESC LIMIT 1)                                   AS LAST_VERDICT,
     (SELECT COUNT(*) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-      WHERE VERDICT <> 'CLEAN' AND NOT NOTIFIED)                              AS UNNOTIFIED_FINDINGS,
+      WHERE VERDICT <> 'CLEAN' AND NOT NOTIFIED
+        AND ACKNOWLEDGED_AT IS NULL)                                          AS UNNOTIFIED_FINDINGS,
     CASE
       WHEN (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG) IS NULL
            THEN 'NEVER_RUN'
@@ -174,10 +189,11 @@ SELECT
              (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG),
              SYSDATE()) > 30                     THEN 'STALE'
       WHEN (SELECT COUNT(*) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-             WHERE VERDICT <> 'CLEAN' AND NOT NOTIFIED) > 0
+             WHERE VERDICT <> 'CLEAN' AND NOT NOTIFIED
+               AND ACKNOWLEDGED_AT IS NULL) > 0
                                                  THEN 'FINDINGS_UNNOTIFIED'
       WHEN (SELECT VERDICT FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-             ORDER BY CHECK_ID DESC LIMIT 1) <> 'CLEAN'
+             ORDER BY CHECKED_AT_UTC DESC LIMIT 1) <> 'CLEAN'
                                                  THEN 'DRIFT_OPEN'
       ELSE 'OK'
     END                                                                       AS HEALTH;

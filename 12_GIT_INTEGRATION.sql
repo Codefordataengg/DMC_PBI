@@ -30,7 +30,7 @@ USE SCHEMA DCM_ADMIN.PROJECTS;
 CREATE OR REPLACE SECRET DCM_ADMIN.PROJECTS.GITHUB_PAT
     TYPE     = password
     USERNAME = 'Codefordataengg'
-    PASSWORD = '<<<PASTE_TOKEN_HERE>>>'
+    PASSWORD = '<<<PASTE_TOKEN_HERE>>>'   -- never commit a real token; GitHub auto-revokes leaked ones
     COMMENT  = 'GitHub PAT for the DCM POC repo. Rotate or drop when the POC ends.';
 
 
@@ -117,6 +117,7 @@ AS
 /* ---- 7. Turn it on ------------------------------------------------------
    Run this only after section 5 came back clean.                            */
 
+-- Done 2026-08-23: task is RESUMED and running nightly at 05:00 UTC.
 -- ALTER TASK DCM_ADMIN.AUDIT.TASK_DCM_DRIFT_CHECK RESUME;
 -- SHOW TASKS IN SCHEMA DCM_ADMIN.AUDIT;
 
@@ -125,4 +126,5 @@ AS
    Two sources of truth is one too many. Once git is proven, the stage is a
    copy that nothing updates and that anyone could deploy from by accident.   */
 
+-- Done 2026-08-23: stage dropped. Git is now the only source of truth.
 -- DROP STAGE DCM_ADMIN.PROJECTS.PBI_CAPACITIES_SRC;
