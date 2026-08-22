@@ -1,0 +1,30 @@
+# DCM POC — capacities slice.
+#
+# manifest_version 2 is the current schema version. `targets` is a REQUIRED
+# field even though the SQL execution path (EXECUTE DCM PROJECT ... FROM '@stage')
+# does not read it — the CLI and Snowsight Workspaces do.
+#
+# account_identifier MUST be the PERSONAL account (locator LV16268), never
+# LF96743-NU71207. That second one is the Snowy tenant and is out of bounds
+# for this POC. See ../README.md.
+#
+# Confirmed 2026-08-22 from the personal account:
+#   CURRENT_ORGANIZATION_NAME() = YVTSYHL
+#   CURRENT_ACCOUNT_NAME()      = PP80681
+#   CURRENT_ACCOUNT() (locator) = LV16268
+
+manifest_version: 2
+type: DCM_PROJECT
+
+default_target: poc
+
+targets:
+  poc:
+    # <ORGNAME>-<ACCOUNTNAME>. Note this is NOT the locator LV16268.
+    account_identifier: YVTSYHL-PP80681
+
+    # The project object deliberately lives OUTSIDE the database it manages.
+    # If it lived in DEVELOP, the project would own the database containing
+    # itself, and a DEFINE removal could take the project object with it.
+    project_name: DCM_ADMIN.PROJECTS.PBI_CAPACITIES
+    project_owner: ACCOUNTADMIN

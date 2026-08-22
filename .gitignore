@@ -1,0 +1,4 @@
+# Snowflake CLI writes plan/deploy artifacts here. Reproducible output, not source.
+out/
+
+.DS_Store
