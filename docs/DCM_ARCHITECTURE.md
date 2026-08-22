@@ -40,12 +40,12 @@ Closing (2) is the whole point. Everything below exists to serve it.
 ```mermaid
 flowchart TB
     subgraph src["SOURCE OF TRUTH"]
-        G["GitHub repo<br/><i>snowflake-dcm/</i>"]
+        G["GitHub<br/>Codefordataengg/DMC_PBI"]
     end
 
     subgraph sf["SNOWFLAKE — personal account LV16268"]
         subgraph admin["DCM_ADMIN"]
-            R["GIT REPOSITORY<br/><i>or stage today</i>"]
+            R["GIT REPOSITORY<br/>PBI_REPO → main"]
             P["DCM PROJECT<br/>PBI_CAPACITIES"]
             subgraph aud["AUDIT schema"]
                 L[("CTL_DCM_DRIFT_LOG<br/><i>append-only</i>")]
@@ -61,7 +61,7 @@ flowchart TB
 
     M(["📧 email alert"])
 
-    G -->|FETCH| R
+    G -->|"ALTER ... FETCH<br/>before every PLAN"| R
     R -->|"definitions"| P
     P -->|PLAN — read only| SP
     P -->|"DEPLOY — human only"| D
@@ -152,6 +152,9 @@ Each row is a way the monitor could quietly stop being a monitor.
 
 | Failure | What would happen without design | What happens now |
 |---|---|---|
+| Stale git clone | Compares the database to an old repo and calls it clean | `FETCH` runs inside the check, before every `PLAN` |
+| "Latest row" found by `IDENTITY` | Alert reads an older row and stays silent (F8) | Sequence claimed before insert; recency from timestamps |
+| Monitor permanently amber | People stop reading it | `ACKNOWLEDGED_AT` closes a finding without faking a notification |
 | Someone uses `PLAN DELTA` | Skips out-of-band changes → reports `CLEAN` over a drifted database | Comment in the proc; CLI has no delta flag |
 | Email outage | Finding lost | Audit row written **first**; `NOTIFIED=FALSE` surfaces in health view |
 | Task suspended | Silence reads identical to "all clear" | `V_DCM_MONITOR_HEALTH` → `STALE` / `NEVER_RUN` |
@@ -206,6 +209,7 @@ sequenceDiagram
 | [`../04_SNOWSIGHT_RUN.sql`](../04_SNOWSIGHT_RUN.sql) | Same five steps as pure SQL |
 | [`../10_AUDIT_AND_MONITOR.sql`](../10_AUDIT_AND_MONITOR.sql) | Log, views, drift procedure, task |
 | [`../11_ALERTING.sql`](../11_ALERTING.sql) | Email integration, alert body, health view |
+| [`../12_GIT_INTEGRATION.sql`](../12_GIT_INTEGRATION.sql) | Secret, API integration, git clone, git-sourced task |
 | [`../90_INDUCE_DRIFT.sql`](../90_INDUCE_DRIFT.sql) | Deliberate drift for testing |
 | [`../FINDINGS.md`](../FINDINGS.md) | **F1–F7.** Dated, evidenced results |
 
@@ -222,6 +226,7 @@ sequenceDiagram
 | F5 | **DCM detects hand-made drift, naming the column and type** | The POC verdict — pass |
 | F6 | **DCM records `DEPLOY`, never `PLAN`** | The audit table is mandatory |
 | F7 | Dropping a non-last column is un-revertible | `ERROR` is the common case |
+| F8 | Snowflake `IDENTITY` is not monotonic across sessions | Silently suppressed a `DRIFT` alert |
 
 ---
 
@@ -232,5 +237,7 @@ sequenceDiagram
 - DCM Projects is a **preview** feature (announced 2026-03-20).
 - Runs in a personal account. `SNOWUTILS_RO`/`SNOWUTILS_ADMIN` grants were dropped, so the
   grant layer is entirely untested.
+- **Live as of 2026-08-23:** git is the only source (the stage is dropped) and the nightly
+  task is resumed at 05:00 UTC. It has not yet survived an unattended overnight run.
 - The `ERROR` recovery path has been exercised only on empty tables. On a table holding data
   it means unload → drop → redeploy → reload, and that has not been rehearsed.
