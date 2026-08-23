@@ -279,3 +279,57 @@ any table. If code needs to know which row it just inserted, it must decide the 
 **How it was caught:** only because the git-sourced check was re-tested end to end after being
 repointed, rather than assumed to behave like the stage-sourced one it was copied from. A test
 that only asserted the verdict — and not that the alert *fired* — would have passed.
+
+---
+
+## F9 — The monitor never ran, and the health view reported OK (2026-08-23, verified)
+
+**Third instance of the same disease in this build, and this time in the component whose
+entire job was to catch it.**
+
+The task was resumed 2026-08-22 at 15:10 UTC. It was scheduled for 05:00 UTC daily. At
+13:02 UTC on 2026-08-23 — eight hours after it should have fired:
+
+```
+TASK_HISTORY(TASK_NAME=>'TASK_DCM_DRIFT_CHECK')   →  No data
+
+SHOW TASKS:
+  STATE       suspended
+  DEFINITION  ... '@DCM_ADMIN.PROJECTS.PBI_CAPACITIES_SRC' ...   ← stage, dropped 08-22
+
+V_DCM_MONITOR_HEALTH:
+  HOURS_SINCE_LAST_CHECK  20        HEALTH  OK        ← wrong
+```
+
+Not one failure but three, stacked:
+
+**1. Two files owned the same object.** `11_ALERTING.sql` §4 carried its own
+`CREATE OR REPLACE TASK`, as did `12_GIT_INTEGRATION.sql` §6. Re-running the former to add
+an `ACKNOWLEDGED_AT` column silently repointed the task back at the stage — which had by then
+been dropped — so it would have failed even if it had run.
+
+**2. `CREATE OR REPLACE TASK` always creates the task SUSPENDED**, regardless of its previous
+state. Replacing a running task stops it, and says nothing.
+
+**3. The health view could not tell "ran and found nothing" from "did not run".** It measured
+recency of the last log row and nothing else, with a 30-hour staleness window — so a fully
+missed daily run still read `OK` for six more hours. The one failure it existed to catch was
+the one it was blind to.
+
+**Fixes.**
+
+| | |
+|---|---|
+| Single ownership | The task is defined in `12_GIT_INTEGRATION.sql` §6 and **nowhere else**. `11_ALERTING.sql` §4 now explains why it is absent. |
+| Task state is now a health input | `TASK_HISTORY` shows a future `SCHEDULED` row only while a task is resumed. `NEXT_RUN_UTC IS NULL` → **`TASK_NOT_SCHEDULED`**, ranked above every other state, because a suspended monitor makes the rest of the row meaningless. |
+| Window tightened | 30h → **26h**. A daily task may run late; it may not miss a whole day. |
+| Verified both ways | The view returned `TASK_NOT_SCHEDULED` while suspended, and `OK` with `NEXT_RUN_UTC = 2026-08-24 05:00 UTC` once repointed and resumed. |
+
+**The pattern, stated plainly.** Three times now in this build the same shape has appeared:
+`IF NOT EXISTS` that cannot detect drift; alert-then-succeed hiding a seven-month dashboard
+freeze; `ORDER BY CHECK_ID` suppressing an alert while reporting success (F8); and now a health
+view reporting `OK` over a monitor that was switched off. **Every one was a component that
+returned a reassuring value without having checked the thing it claimed to check.**
+
+The general defence is not more monitors. It is that a check must fail when its own
+preconditions are unmet, rather than reporting on data it never gathered.

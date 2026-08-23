@@ -135,19 +135,21 @@ END;
 $$;
 
 
-/* ---- 4. Repoint the schedule at the alerting version -------------------- */
+/* ---- 4. THE TASK IS NOT DEFINED HERE ------------------------------------
 
-CREATE OR REPLACE TASK DCM_ADMIN.AUDIT.TASK_DCM_DRIFT_CHECK
-    WAREHOUSE = COMPUTE_WH
-    SCHEDULE  = 'USING CRON 0 5 * * * UTC'
-    COMMENT   = 'Nightly DCM drift check + alert. Never deploys.'
-AS
-    CALL DCM_ADMIN.AUDIT.SP_DCM_DRIFT_CHECK_AND_ALERT(
-        'DCM_ADMIN.PROJECTS.PBI_CAPACITIES',
-        '@DCM_ADMIN.PROJECTS.PBI_CAPACITIES_SRC',
-        'amitbhopte099@gmail.com'
-    );
+   It lives in 12_GIT_INTEGRATION.sql section 6, and NOWHERE ELSE.
 
+   This file used to carry its own CREATE OR REPLACE TASK. Re-running it to add
+   a column silently did two things: repointed the task at a stage that had since
+   been dropped, and reset it to SUSPENDED - because CREATE OR REPLACE TASK
+   always creates suspended, whatever the previous state was.
+
+   The task then missed its 05:00 run and nothing noticed for 22 hours.
+   See FINDINGS.md F9.
+
+   Rule: one object, one owning file. If you need to change the task, change it
+   where it is defined.
+                                                                          ---- */
 
 /* ---- 5. The watcher's watcher -------------------------------------------
    Everything above alerts when the check RUNS and finds something. Nothing
@@ -170,33 +172,41 @@ ALTER TABLE DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
     ADD COLUMN IF NOT EXISTS ACKNOWLEDGED_NOTE VARCHAR(1000);
 
 CREATE OR REPLACE VIEW DCM_ADMIN.AUDIT.V_DCM_MONITOR_HEALTH AS
+WITH last_check AS (
+    /* Recency comes from the timestamp, never from CHECK_ID - see F8. */
+    SELECT VERDICT, CHECKED_AT_UTC
+    FROM   DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
+    ORDER  BY CHECKED_AT_UTC DESC
+    LIMIT  1
+), next_run AS (
+    /* A RESUMED task has a future SCHEDULED row here. A SUSPENDED task has
+       nothing at all - which is precisely the state that previously read as OK.
+       Log recency alone cannot tell "ran and found nothing" from "did not run". */
+    SELECT MIN(SCHEDULED_TIME) AS NEXT_SCHEDULED_TIME
+    FROM   TABLE(DCM_ADMIN.INFORMATION_SCHEMA.TASK_HISTORY(
+                 TASK_NAME => 'TASK_DCM_DRIFT_CHECK', RESULT_LIMIT => 20))
+    WHERE  STATE = 'SCHEDULED'
+), outstanding AS (
+    SELECT COUNT(*) AS N
+    FROM   DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
+    WHERE  VERDICT <> 'CLEAN' AND NOT NOTIFIED AND ACKNOWLEDGED_AT IS NULL
+)
 SELECT
-    (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG)      AS LAST_CHECK_UTC,
-    DATEDIFF('hour',
-             (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG),
-             SYSDATE())                                                       AS HOURS_SINCE_LAST_CHECK,
-    /* ORDER BY CHECKED_AT_UTC, never CHECK_ID - see FINDINGS.md F8. The same
-       mistake in the alert procedure silently suppressed a DRIFT notification. */
-    (SELECT VERDICT FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-      ORDER BY CHECKED_AT_UTC DESC LIMIT 1)                                   AS LAST_VERDICT,
-    (SELECT COUNT(*) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-      WHERE VERDICT <> 'CLEAN' AND NOT NOTIFIED
-        AND ACKNOWLEDGED_AT IS NULL)                                          AS UNNOTIFIED_FINDINGS,
+    lc.CHECKED_AT_UTC                                          AS LAST_CHECK_UTC,
+    DATEDIFF('hour', lc.CHECKED_AT_UTC, SYSDATE())             AS HOURS_SINCE_LAST_CHECK,
+    lc.VERDICT                                                 AS LAST_VERDICT,
+    nr.NEXT_SCHEDULED_TIME                                     AS NEXT_RUN_UTC,
+    o.N                                                        AS UNNOTIFIED_FINDINGS,
     CASE
-      WHEN (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG) IS NULL
-           THEN 'NEVER_RUN'
-      WHEN DATEDIFF('hour',
-             (SELECT MAX(CHECKED_AT_UTC) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG),
-             SYSDATE()) > 30                     THEN 'STALE'
-      WHEN (SELECT COUNT(*) FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-             WHERE VERDICT <> 'CLEAN' AND NOT NOTIFIED
-               AND ACKNOWLEDGED_AT IS NULL) > 0
-                                                 THEN 'FINDINGS_UNNOTIFIED'
-      WHEN (SELECT VERDICT FROM DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
-             ORDER BY CHECKED_AT_UTC DESC LIMIT 1) <> 'CLEAN'
-                                                 THEN 'DRIFT_OPEN'
+      /* Ordered by severity. "Not scheduled" outranks everything, because a
+         suspended monitor makes every other field on this row meaningless. */
+      WHEN nr.NEXT_SCHEDULED_TIME IS NULL          THEN 'TASK_NOT_SCHEDULED'
+      WHEN lc.CHECKED_AT_UTC IS NULL               THEN 'NEVER_RUN'
+      /* 26h, not 30h. A daily task may run a little late; it may not miss a
+         whole day. The old 30h window let a fully missed run read as OK. */
+      WHEN DATEDIFF('hour', lc.CHECKED_AT_UTC, SYSDATE()) > 26 THEN 'STALE'
+      WHEN o.N > 0                                 THEN 'FINDINGS_UNNOTIFIED'
+      WHEN lc.VERDICT <> 'CLEAN'                   THEN 'DRIFT_OPEN'
       ELSE 'OK'
-    END                                                                       AS HEALTH;
-
-/* 30 hours, not 24: a daily task that runs a little late must not read as dead.
-   Same reasoning as the governance monitor's window. */
+    END                                                        AS HEALTH
+FROM last_check lc, next_run nr, outstanding o;
