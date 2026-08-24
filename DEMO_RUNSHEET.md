@@ -132,7 +132,16 @@ DROP DATABASE DEMO_SCRATCH;
 
 ## 2 — Build it in Snowflake
 
-**Snowsight → Projects → Workspaces → `+ Add new` → DCM Project.**
+**Snowsight → Projects → Workspaces.**
+
+You already have a workspace — Snowflake creates `My Workspace` automatically the first time
+anyone opens this page. **You do not create one.** It lives at `USER$.PUBLIC.DEFAULT$`, which
+is a per-user database only you can see.
+
+Inside it: **`+ Add new` → DCM Project**, and name it `DCM_DEMO`.
+
+> **Say:** "This is a folder in my personal workspace. Nobody else can see it, and nothing
+> scheduled can read it. That matters later."
 
 Snowflake scaffolds:
 
@@ -647,7 +656,8 @@ Show the alert email, and — if you're willing, it lands well:
 | Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
 | *From Git repository* won't create | API integration or credential not selectable | Skip 4a, do 4b in SQL, and say the UI is a convenience over the same objects |
 | Workspace shows an old branch | Branch selector still on the previous one | Switch it, then **Pull** — worth narrating, it is the same mistake as forgetting `FETCH` |
-| Two workspaces confuse you mid-demo | §2 and §4a each made one | Name them on creation: `demo-authoring` and `demo-from-git` |
+| Two project folders confuse you mid-demo | §2 makes one, §4a makes a second workspace | §2's is `DCM_DEMO` in *My Workspace*; §4a creates a **separate workspace** from the repo URL |
+| Loose `.sql` files in the tree | Earlier experiments outside the project folder | Delete them before demoing — DCM only reads `sources/definitions/`, but a cluttered tree is hard to narrate |
 | Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set it to `""` in the manifest, re-plan |
 | `Files: 0, Errors: 0` in Output | `sources/definitions/` is empty | Expected before §2's definitions exist. Not an error |
 | Grants macro errors on a missing role | `project_owner_role` still `"MY_ROLE"` | Set it to `ACCOUNTADMIN`, or delete `sources/macros/` |
