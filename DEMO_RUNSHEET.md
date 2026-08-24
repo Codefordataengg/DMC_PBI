@@ -228,6 +228,33 @@ DEFINE TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES (
 > **Say:** "`DEFINE`, not `CREATE` — a description of what should be true, not an instruction.
 > And these types aren't invented; they came from `GET_DDL` against the real dev database."
 
+### First Plan — expect a dialog
+
+The first time you click **Plan**, Snowsight will say:
+
+> **Project does not exist.** `DCM_ADMIN.PROJECTS.DEMO_CAPACITIES` doesn't exist. You can
+> create it now using this name and owner role `ACCOUNTADMIN` specified in `manifest.yml`.
+
+**Click Create.** This is expected, not an error — and it is worth a sentence rather than
+clicking past it.
+
+> **Say:** "Two different things share that name. The manifest *declares* the project should be
+> called `DEMO_CAPACITIES` — that's a line of YAML. The project object is the real thing in
+> Snowflake that holds deployment history. Snowflake just noticed the declaration had nothing
+> behind it and offered to fix it.
+>
+> Which is the same shape as everything else today: something declared, something real, and a
+> check that the two agree."
+
+The equivalent in SQL, if you prefer to pre-create it:
+
+```sql
+CREATE DCM PROJECT IF NOT EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
+```
+
+**Prerequisite:** the schema `DCM_ADMIN.PROJECTS` must already exist — pre-flight creates it.
+The dialog cannot create a missing schema, only the project.
+
 **Plan** → 6 entities, 5 create, 1 alter. **Deploy.** Then verify independently:
 
 ```sql
@@ -624,6 +651,8 @@ Show the alert email, and — if you're willing, it lands well:
 | Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set it to `""` in the manifest, re-plan |
 | `Files: 0, Errors: 0` in Output | `sources/definitions/` is empty | Expected before §2's definitions exist. Not an error |
 | Grants macro errors on a missing role | `project_owner_role` still `"MY_ROLE"` | Set it to `ACCOUNTADMIN`, or delete `sources/macros/` |
+| "Project does not exist" dialog | Normal on first Plan — the object hasn't been created yet | Click **Create**. Narrate it, don't apologise for it |
+| **Create** in that dialog fails | Schema `DCM_ADMIN.PROJECTS` missing | `CREATE SCHEMA DCM_ADMIN.PROJECTS;` then Plan again |
 | Plan from git disagrees with workspace | Forgot to `FETCH` after merging | `FETCH`, re-plan. **Good teaching moment — say so out loud** |
 | Everything is wrong | — | `DROP DATABASE DEMO_PBI;` → §2. Rebuild ≈ 15 seconds |
 
