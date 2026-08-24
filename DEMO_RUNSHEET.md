@@ -1,6 +1,6 @@
 # Demo run sheet — DCM and Git, the full round trip
 
-**~45 min + questions. Short cut ~20 min, marked ⏩.**
+**~47 min + questions. Short cut ~22 min, marked ⏩.**
 
 Build a DCM project in Snowflake, push it to an empty GitHub repo, pull it back in as a
 Snowflake-managed clone, develop against it, ship the change through git, and catch someone
@@ -37,7 +37,7 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 | 1 | [The problem, in 90 seconds](#1--the-problem-in-90-seconds) | 3 | ⏩ |
 | 2 | [Build it in Snowflake](#2--build-it-in-snowflake) | 8 | ⏩ |
 | 3 | [**Push to an empty repo**](#3--push-to-an-empty-repo) | 4 | ⏩ |
-| 4 | [**Pull it back as a Snowflake clone**](#4--pull-it-back-as-a-snowflake-clone) | 5 | ⏩ |
+| 4 | [**Pull it back, both ways**](#4--pull-it-back-both-ways) — UI *and* SQL | 7 | ⏩ |
 | 5 | [Develop on a branch](#5--develop-on-a-branch) | 4 | |
 | 6 | [**Diff one — what the code changed**](#6--diff-one--what-the-code-changed) | 3 | ⏩ |
 | 7 | [**Diff two — what the database will do**](#7--diff-two--what-the-database-will-do) | 4 | ⏩ |
@@ -76,6 +76,16 @@ CREATE SCHEMA   IF NOT EXISTS DCM_ADMIN.PROJECTS;
 ```
 
 Leave the real `PBI_REPO`, `PBI_CAPACITIES` and the nightly task alone — §11 uses them.
+
+**Also delete any leftover demo workspaces** (Projects → Workspaces). You will create two
+during the demo and it helps to start with none:
+
+| Created in | Name it | Why it exists |
+|---|---|---|
+| §2 | `demo-authoring` | scaffolded from nothing, no git |
+| §4a | `demo-from-git` | created *from* the repo URL |
+
+Naming them on creation avoids the muddle of two identical-looking workspaces on screen.
 
 ### C. Checklist
 
@@ -211,10 +221,56 @@ this is ordinary code in an ordinary repo, not a Snowflake-flavoured special cas
 
 ---
 
-## 4 — Pull it back as a Snowflake clone
+## 4 — Pull it back, both ways
 
-> **Say:** "Now the direction people find confusing. My workspace is a git client — it's how
-> *I* edit. But a scheduled job at 5am has no workspace. Snowflake needs its own copy."
+> **Say:** "Now the direction people find confusing. There are two ways to bring that repo into
+> Snowflake, they are **not** alternatives, and you will usually want both. Let me show you why."
+
+### 4a — The UI route: a workspace from a git URL
+
+**Projects → Workspaces → `+ Add new` → From Git repository.**
+
+Fill in:
+
+| Field | Value |
+|---|---|
+| Repository URL | `https://github.com/Codefordataengg/DCM_DEMO.git` |
+| API integration | `GIT_API_CODEFORDATAENGG` |
+| Authentication | Personal access token |
+| Credentials | `DCM_ADMIN.PROJECTS.GITHUB_PAT` |
+
+**Create.** The files appear in the editor — the same files you pushed in §3, now arriving from
+GitHub rather than from your local session.
+
+> **Say:** "No new credential and no new integration. The API integration is scoped to the
+> whole GitHub account rather than one repo, so a second repo just works."
+
+Show the git controls in the workspace toolbar — **branch selector, Pull, Commit, Push**. Pull
+once, so they see it fetch.
+
+> **Say:** "This is a git client with a SQL editor attached. Everything you'd expect — branch,
+> pull, commit, push — without leaving Snowflake."
+
+Run **Plan** from the workspace button.
+
+**Expect: no changes.**
+
+> **Say:** "I built this from a *different* workspace in §2. This one came from GitHub, and it
+> agrees the database is already correct. Same truth, verified from two directions."
+
+### 4b — The SQL route: a repository object
+
+> **Say:** "So why would I need anything else? Because that workspace is **mine**."
+
+```sql
+SHOW GIT REPOSITORIES IN ACCOUNT;
+```
+
+**Expect: the workspace you just created does NOT appear here.**
+
+> **Say:** "A workspace lives in a personal, per-user database. It exists for a human with a
+> browser open. A scheduled job at 5am has no browser and no workspace — so Snowflake needs an
+> account-level copy that belongs to the account, not to me."
 
 ```sql
 CREATE GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO
@@ -227,10 +283,9 @@ ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
 LS @DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/;
 ```
 
-> **Say:** "No new credential, no new integration. The API integration is scoped to the whole
-> GitHub account, so a second repo just works."
+Run `SHOW GIT REPOSITORIES IN ACCOUNT;` again — **now it appears.**
 
-Now the parity check — this is the point of the section:
+And the same parity check, from this third path:
 
 ```sql
 EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
@@ -239,18 +294,21 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 
 **Expect: no changes.**
 
-> **Say:** "I built that from my workspace. I'm now planning it from the git clone — a
-> completely different path — and it agrees the database is already correct. The repo and the
-> database are the same thing, verified from two directions."
+### Which is which
 
-**Two objects, and people conflate them:**
-
-| | What it is | Used by |
+| | Workspace | `GIT REPOSITORY` |
 |---|---|---|
-| **Workspace** | Git client with an editor, per-user | you, interactively |
-| **`GIT REPOSITORY`** | Account-level clone | `PLAN`, `DEPLOY`, the nightly task |
+| Created by | UI: *From Git repository* | SQL: `CREATE GIT REPOSITORY` |
+| Lives in | your personal `USER$` database | a schema you choose |
+| Belongs to | **you** | the account |
+| Good for | editing, branching, committing | tasks, procedures, automation |
+| Path form | `snow://workspace/...` | `@DB.SCHEMA.REPO/branches/main/` |
+| Updates by | **Pull** button | `ALTER ... FETCH` |
+| Survives you leaving | no | yes |
 
----
+> **Say:** "The workspace is where a person works. The repository object is what the machine
+> reads at five in the morning. Delete my workspace and the nightly check carries on. Delete
+> the repository object and it stops."
 
 ## 5 — Develop on a branch
 
@@ -292,7 +350,12 @@ Leave the PR open on screen.
 
 ## 7 — Diff two: what the database will do
 
-Merge the PR on GitHub. **Then back to Snowsight:**
+Merge the PR on GitHub. **Then back to Snowsight — do this in the UI first:**
+
+In the workspace: switch the branch selector to **`main`**, click **Pull**. The merged view
+definition appears. Click **Plan**.
+
+Then the same thing from the account-level clone, so they see both stay in step:
 
 ```sql
 ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
@@ -300,6 +363,10 @@ ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
 EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
     PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
 ```
+
+> **Say:** "Two pulls, because there are two copies — mine and the account's. The button
+> updated my workspace. `FETCH` updated the one the nightly job reads. Miss the second and the
+> 5am check is still looking at yesterday's repo."
 
 **Expect: 1 entity to create — the view.**
 
@@ -452,6 +519,9 @@ Show the alert email, and — if you're willing, it lands well:
 | Plan errors with file and line | Un-revertible drift from earlier | `DROP TABLE` the named table, Deploy |
 | `LS @...DEMO_REPO/...` empty | Clone stale, or pushed to a branch | `ALTER GIT REPOSITORY ... FETCH;` and check the branch |
 | Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
+| *From Git repository* won't create | API integration or credential not selectable | Skip 4a, do 4b in SQL, and say the UI is a convenience over the same objects |
+| Workspace shows an old branch | Branch selector still on the previous one | Switch it, then **Pull** — worth narrating, it is the same mistake as forgetting `FETCH` |
+| Two workspaces confuse you mid-demo | §2 and §4a each made one | Name them on creation: `demo-authoring` and `demo-from-git` |
 | Plan from git disagrees with workspace | Forgot to `FETCH` after merging | `FETCH`, re-plan. **Good teaching moment — say so out loud** |
 | Everything is wrong | — | `DROP DATABASE DEMO_PBI;` → §2. Rebuild ≈ 15 seconds |
 
