@@ -333,3 +333,49 @@ returned a reassuring value without having checked the thing it claimed to check
 
 The general defence is not more monitors. It is that a check must fail when its own
 preconditions are unmet, rather than reporting on data it never gathered.
+
+---
+
+## F10 — Views work, report better, and share the reorder limitation (2026-08-24, verified)
+
+Tested because the demo plan proposed a `VIEW` as its incremental object, and views had
+**never been exercised** — the POC covered only databases, schemas and tables.
+
+**They work.** `DEFINE VIEW ... AS SELECT ...` parses, plans and deploys.
+
+**Drift reporting on a view is richer than on a table.** A view redefined by hand outside DCM
+produced a changeset naming the added column *and* diffing the SQL itself:
+
+```json
+"kind": "changed", "attribute_name": "select_query",
+"value":      "SELECT ID, LABEL FROM ... WHERE LABEL IS NOT NULL",
+"prev_value": "SELECT ID, LABEL, 'TAMPERED' AS SNUCK_IN FROM ..."
+```
+
+Before-and-after SQL, not just a column list. For a view, that is the whole object.
+
+**But the F7 constraint applies here too.** Removing a *leading* column from a view — so the
+revert has to restore column order — fails exactly as it does for tables:
+
+```
+Cannot reorder VIEW columns in ALTER. Saw ID before LABEL.
+```
+
+So the earlier instinct that views are simply "safer than tables" is **wrong**. The accurate
+comparison:
+
+| | Table | View |
+|---|---|---|
+| Drift detected at column grain | yes | yes |
+| Full definition diff reported | no | **yes** — the `SELECT` itself |
+| Reverting a trailing change | yes | yes |
+| Reverting a non-trailing removal | **no** — `ERROR` | **no** — `ERROR` |
+| Data destroyed by revert | **yes** — `DROP COLUMN` | no — views hold none |
+
+Views are safer in exactly one respect: reverting one destroys no data. They are *not* exempt
+from the reorder rule, and a view whose leading column is removed by hand needs the same
+manual `DROP` and redeploy a table does.
+
+**Demo consequence:** a view is a good object to author live, and a good object to drift — but
+drift it by **adding** a column, not removing a leading one, unless the `ERROR` path is the
+point being made.
