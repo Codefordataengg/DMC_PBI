@@ -1,6 +1,6 @@
 # Demo run sheet — DCM and Git, the full round trip
 
-**~47 min + questions. Short cut ~22 min, marked ⏩.**
+**~51 min + questions. Short cut ~22 min, marked ⏩.**
 
 Build a DCM project in Snowflake, push it to an empty GitHub repo, pull it back in as a
 Snowflake-managed clone, develop against it, ship the change through git, and catch someone
@@ -44,8 +44,9 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 | 8 | [**Diff three — the reveal**](#8--diff-three--the-reveal) | 5 | ⏩ |
 | 9 | [Put it back](#9--put-it-back) | 2 | ⏩ |
 | 10 | [The one that surprises people](#10--the-one-that-surprises-people) | 4 | |
-| 11 | [Every morning, unattended](#11--every-morning-unattended) | 4 | |
-| 12 | [Close honestly](#12--close-honestly) | 2 | ⏩ |
+| 11 | [One source, two environments](#11--one-source-two-environments) | 4 | |
+| 12 | [Every morning, unattended](#12--every-morning-unattended) | 4 | |
+| 13 | [Close honestly](#13--close-honestly) | 2 | ⏩ |
 | — | [If something breaks live](#if-something-breaks-live) | — | **read first** |
 
 ---
@@ -145,15 +146,54 @@ sources/macros/       grants_macro.sql               ← keep
 Scroll `examples.sql` without reading it aloud — point out it declares warehouses, dynamic
 tables, **roles and grants**, then delete it.
 
-In `manifest.yml` set:
+### The manifest — walk all three blocks
+
+Open `manifest.yml`. The scaffold generates three blocks and **placeholders in two of them
+that will bite you**. Change what is marked.
 
 ```yaml
+manifest_version: 2                       # schema version. Leave it.
+type: DCM_PROJECT
+
+default_target: DCM_DEV                   # which target runs when you don't say
+
 targets:
   DCM_DEV:
     account_identifier: YVTSYHL-PP80681
-    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES   # ← CHANGE
     project_owner: ACCOUNTADMIN
+    templating_config: DEV
+
+templating:
+  defaults:
+    project_owner_role: "ACCOUNTADMIN"    # ← CHANGE from "MY_ROLE"
+    wh_size: "SMALL"
+  configurations:
+    DEV:
+      env_suffix: ""                      # ← CHANGE from "_MY_PROJECT_OBJECT"
+      teams:
+        - name: "SAMPLE_TEAM"
+          data_retention_days: 1
 ```
+
+> **Say, pointing at each block:** "`targets` is *where* — which account, which project object.
+> `templating` is *what varies* — the values that differ between environments. And
+> `default_target` picks one when you don't name it."
+
+**Two changes matter, and say why out loud:**
+
+| Placeholder | Change to | If you don't |
+|---|---|---|
+| `env_suffix: "_MY_PROJECT_OBJECT"` | `""` | Every object gets that string appended — `DEMO_PBI_MY_PROJECT_OBJECT` |
+| `project_owner_role: "MY_ROLE"` | `"ACCOUNTADMIN"` | The grants macro references a role that doesn't exist |
+
+> **Say:** "`env_suffix` is empty for now so the names stay readable. I'll come back to it —
+> it's how one set of files builds both dev and prod."
+
+That forward reference sets up §11. Don't explain it further here.
+
+**If `sources/definitions/` is empty** — you deleted the examples, which is right — the Output
+pane reads `Files: 0, Errors: 0`. That is not an error. It has nothing to analyse yet.
 
 Create `sources/definitions/10_capacities.sql`:
 
@@ -459,7 +499,66 @@ Recover on screen: `DROP TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES;` then Deploy.
 
 ---
 
-## 11 — Every morning, unattended
+## 11 — One source, two environments
+
+> **Say:** "Remember `env_suffix`. Here is what it's for."
+
+In `manifest.yml`, add a second target and configuration:
+
+```yaml
+targets:
+  DCM_DEV:
+    account_identifier: YVTSYHL-PP80681
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    project_owner: ACCOUNTADMIN
+    templating_config: DEV
+  DCM_PROD:                                    # same account, for the demo
+    account_identifier: YVTSYHL-PP80681
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    project_owner: ACCOUNTADMIN
+    templating_config: PROD
+
+templating:
+  configurations:
+    DEV:
+      env_suffix: ""
+    PROD:
+      env_suffix: "_PROD"
+```
+
+Then reference it in the definitions — one edit, at the top of `10_capacities.sql`:
+
+```sql
+DEFINE DATABASE DEMO_PBI{{env_suffix}}
+```
+
+…and the same `{{env_suffix}}` on each `DEFINE SCHEMA` and `DEFINE TABLE`.
+
+Plan against each target. In the workspace use the **target selector** (bottom right of the
+Output pane — it currently reads `DCM_DEV (default)`), or in SQL:
+
+```sql
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    PLAN USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+```
+
+**Expect: `DEMO_PBI_PROD`, `DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES`** — a full set of creates,
+because that environment doesn't exist yet.
+
+> **Say:** "Same files. Same commit. Same review. Different environment. The differences between
+> dev and prod are declared in one place instead of living in two copies of the DDL that drift
+> apart — which is how everyone actually ends up with a prod schema nobody can reproduce.
+>
+> And note *this* is the honest version of 'promote to production': you don't copy anything.
+> You point the same reviewed definition at a different target."
+
+**Don't deploy it** unless you have time — the plan is the point. If you do, remember to purge
+it afterwards.
+
+---
+
+## 12 — Every morning, unattended
 
 Switch to the **real** project.
 
@@ -496,7 +595,7 @@ Show the alert email, and — if you're willing, it lands well:
 
 ---
 
-## 12 — Close honestly
+## 13 — Close honestly
 
 > **Say:** "Three diffs. Git shows what someone wrote. The plan shows what will happen. The
 > drift check shows what happened *without* either — and that third one is what we've never
@@ -522,6 +621,9 @@ Show the alert email, and — if you're willing, it lands well:
 | *From Git repository* won't create | API integration or credential not selectable | Skip 4a, do 4b in SQL, and say the UI is a convenience over the same objects |
 | Workspace shows an old branch | Branch selector still on the previous one | Switch it, then **Pull** — worth narrating, it is the same mistake as forgetting `FETCH` |
 | Two workspaces confuse you mid-demo | §2 and §4a each made one | Name them on creation: `demo-authoring` and `demo-from-git` |
+| Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set it to `""` in the manifest, re-plan |
+| `Files: 0, Errors: 0` in Output | `sources/definitions/` is empty | Expected before §2's definitions exist. Not an error |
+| Grants macro errors on a missing role | `project_owner_role` still `"MY_ROLE"` | Set it to `ACCOUNTADMIN`, or delete `sources/macros/` |
 | Plan from git disagrees with workspace | Forgot to `FETCH` after merging | `FETCH`, re-plan. **Good teaching moment — say so out loud** |
 | Everything is wrong | — | `DROP DATABASE DEMO_PBI;` → §2. Rebuild ≈ 15 seconds |
 
