@@ -81,6 +81,7 @@ already offer, and the POC has answered its question in the negative. That is a 
 | `04_SNOWSIGHT_RUN.sql` | The same five steps as pure SQL, for a Snowsight worksheet. Needs the definition files on a stage first (§0.3). **Self-contained — includes the step 4 drift statements inline.** |
 | `90_INDUCE_DRIFT.sql` | Step 4. The hand edits the POC is judged on. |
 | `FINDINGS.md` | Dated results. Write to it as you go. |
+| `DEMO_RUNSHEET.md` | **Live demo script** — 12 sections, timings, talking points, expected output, and what to do when a step misbehaves in front of an audience. |
 
 ## Before building — verify, do not assume
 
