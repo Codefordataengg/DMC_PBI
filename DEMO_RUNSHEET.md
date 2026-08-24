@@ -1,17 +1,31 @@
-# Demo run sheet — building a DCM project from nothing
+# Demo run sheet — DCM and Git, the full round trip
 
-**~35 min + questions. Short cut ~15 min, marked ⏩.**
+**~45 min + questions. Short cut ~20 min, marked ⏩.**
 
-You build a project live in Snowsight: scaffold it, write the definitions, plan, deploy,
-break it, catch the break, then put it under version control. Nothing is pulled from a repo —
-the audience watches it come into existence.
+Build a DCM project in Snowflake, push it to an empty GitHub repo, pull it back in as a
+Snowflake-managed clone, develop against it, ship the change through git, and catch someone
+tampering with the database in between.
 
-Everything runs in the personal account (`LV16268`). Nothing touches Snowy's `DEVELOP` or any
-Matillion pipeline.
+The audience sees a change travel the whole loop — twice — and sees what happens when
+something bypasses it.
 
-> **The one sentence they should leave with:**
-> *"Our repo can build the database. It cannot prove the database still matches it. That
-> second guarantee is what was missing — and here is what it costs to buy."*
+Runs in the personal account (`LV16268`). Nothing touches Snowy's `DEVELOP` or Matillion.
+
+---
+
+## The spine of the demo: three questions, three diffs
+
+Put this on a slide, or draw it. Everything below is an instance of it.
+
+| Question | Answered by | Shown in |
+|---|---|---|
+| What changed in the **definition**? | `git diff` | §6 |
+| What will change in the **database**? | `DCM PLAN` | §7 |
+| What changed in the database **without going through git**? | drift check | §8 |
+
+> **Say early, and repeat at the end:** "Git tells you what someone *wrote*. The plan tells you
+> what will *happen*. Neither of those catches the third case — somebody changing the database
+> directly. That third one is what we've never been able to see."
 
 ---
 
@@ -19,60 +33,65 @@ Matillion pipeline.
 
 | | Section | Min | |
 |---|---|---|---|
-| — | [Pre-flight](#pre-flight) | 10 | alone, before anyone joins |
+| — | [Pre-flight](#pre-flight) | 15 | alone, before anyone joins |
 | 1 | [The problem, in 90 seconds](#1--the-problem-in-90-seconds) | 3 | ⏩ |
-| 2 | [Scaffold the project](#2--scaffold-the-project) | 4 | ⏩ |
-| 3 | [Read the manifest](#3--read-the-manifest) | 3 | |
-| 4 | [Write the definitions](#4--write-the-definitions) | 5 | ⏩ |
-| 5 | [Plan](#5--plan) | 3 | ⏩ |
-| 6 | [Deploy](#6--deploy) | 3 | ⏩ |
-| 7 | [Run it twice](#7--run-it-twice) | 1 | ⏩ |
-| 8 | [Add a view, live](#8--add-a-view-live) | 3 | |
-| 9 | [**The reveal**](#9--the-reveal) | 5 | ⏩ |
+| 2 | [Build it in Snowflake](#2--build-it-in-snowflake) | 8 | ⏩ |
+| 3 | [**Push to an empty repo**](#3--push-to-an-empty-repo) | 4 | ⏩ |
+| 4 | [**Pull it back as a Snowflake clone**](#4--pull-it-back-as-a-snowflake-clone) | 5 | ⏩ |
+| 5 | [Develop on a branch](#5--develop-on-a-branch) | 4 | |
+| 6 | [**Diff one — what the code changed**](#6--diff-one--what-the-code-changed) | 3 | ⏩ |
+| 7 | [**Diff two — what the database will do**](#7--diff-two--what-the-database-will-do) | 4 | ⏩ |
+| 8 | [**Diff three — the reveal**](#8--diff-three--the-reveal) | 5 | ⏩ |
+| 9 | [Put it back](#9--put-it-back) | 2 | ⏩ |
 | 10 | [The one that surprises people](#10--the-one-that-surprises-people) | 4 | |
-| 11 | [Put it under version control](#11--put-it-under-version-control) | 3 | |
-| 12 | [What this looks like at scale](#12--what-this-looks-like-at-scale) | 4 | |
-| 13 | [Close honestly](#13--close-honestly) | 2 | ⏩ |
+| 11 | [Every morning, unattended](#11--every-morning-unattended) | 4 | |
+| 12 | [Close honestly](#12--close-honestly) | 2 | ⏩ |
 | — | [If something breaks live](#if-something-breaks-live) | — | **read first** |
 
 ---
 
 ## Pre-flight
 
-Do this alone. Never in front of the audience.
+### A. Create an empty GitHub repo — do this first
+
+**`DCM_DEMO`, private, and genuinely empty** — no README, no `.gitignore`, no licence.
+"GitHub shows you nothing" is the opening shot of §3 and a repo with a README ruins it.
+
+Use `Codefordataengg`. Your existing API integration is scoped to
+`https://github.com/Codefordataengg`, **not** to one repo — so a new repo needs no new secret,
+no new integration. Mention that in §4; it is a good detail.
+
+### B. Reset Snowflake
 
 ```sql
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE COMPUTE_WH;
 
--- Clear anything left from a rehearsal.
-DROP DATABASE IF EXISTS DEMO_PBI;
-DROP DCM PROJECT IF EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
+DROP DATABASE       IF EXISTS DEMO_PBI;
+DROP DCM PROJECT    IF EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
+DROP GIT REPOSITORY IF EXISTS DCM_ADMIN.PROJECTS.DEMO_REPO;
 
--- Somewhere for the demo project object to live (the real one already uses this).
 CREATE DATABASE IF NOT EXISTS DCM_ADMIN;
 CREATE SCHEMA   IF NOT EXISTS DCM_ADMIN.PROJECTS;
 ```
 
-**Checklist:**
+Leave the real `PBI_REPO`, `PBI_CAPACITIES` and the nightly task alone — §11 uses them.
 
-- [ ] Snowsight zoom **150%** — result grids are unreadable on a projector at default
-- [ ] Account switcher says **`LV16268`**, not the Snowy tenant
-- [ ] Warehouse resumed — the first query of a demo should not be a cold start
-- [ ] This file open in a second window
-- [ ] **Rehearse §4 once.** It is the only section with real typing, and it is the one that
-      bites
-- [ ] Have the [findings artifact](https://claude.ai/code/artifact/e873f965-68d1-44c2-912b-c5cb41f2baa3)
-      and the real repo open in browser tabs for §12
+### C. Checklist
+
+- [ ] **Rehearse §2 and §5 once.** They are the only sections with real typing
+- [ ] Browser tabs, in order: **GitHub repo** · **Snowsight** · [findings artifact](https://claude.ai/code/artifact/e873f965-68d1-44c2-912b-c5cb41f2baa3)
+- [ ] Snowsight zoom **150%**
+- [ ] Account switcher reads **`LV16268`**
+- [ ] Warehouse resumed
+- [ ] GitHub token to hand — the workspace will ask when you first push
+- [ ] Know how to switch branches in the workspace **before** you're on stage
 
 ---
 
 ## 1 — The problem, in 90 seconds
 
-Do this before mentioning DCM at all.
-
-> **Say:** "Our pipelines create tables with `CREATE TABLE IF NOT EXISTS`. Let me show you what
-> that actually does when the table is already there."
+Before mentioning DCM or git at all.
 
 ```sql
 CREATE DATABASE DEMO_SCRATCH;
@@ -87,57 +106,36 @@ ALTER TABLE DEMO_SCRATCH.S.CUSTOMER ADD COLUMN SALARY VARCHAR(100);
 CREATE TABLE IF NOT EXISTS DEMO_SCRATCH.S.CUSTOMER (ID VARCHAR(36), NAME VARCHAR(200));
 ```
 
-**`Table CUSTOMER successfully created.`** Green. Successful. And a lie by omission.
+**`Table CUSTOMER successfully created.`** — green, successful, and a lie by omission.
 
 ```sql
-DESC TABLE DEMO_SCRATCH.S.CUSTOMER;     -- three columns. SALARY is still there.
-```
-
-> **Say:** "It succeeded without looking inside. It cannot look inside. Now multiply that by
-> **64 of these statements across 9 pipeline files**. The repo can build the database. It can
-> never tell you whether the database still matches it — and every pipeline stays green while
-> the repo is quietly wrong."
-
-```sql
+DESC TABLE DEMO_SCRATCH.S.CUSTOMER;      -- three columns. SALARY is still there.
 DROP DATABASE DEMO_SCRATCH;
 ```
 
+> **Say:** "It succeeded without looking inside, because it cannot look inside. Multiply that
+> by **64 such statements across 9 pipeline files**. The repo can build the database. It can
+> never tell you the database still matches it."
+
 ---
 
-## 2 — Scaffold the project
+## 2 — Build it in Snowflake
 
 **Snowsight → Projects → Workspaces → `+ Add new` → DCM Project.**
 
-Snowflake generates the whole structure:
+Snowflake scaffolds:
 
 ```
 manifest.yml
-sources/
-  definitions/
-    examples.sql        ← delete this
-    jinja_demo.sql      ← delete this
-  macros/
-    grants_macro.sql    ← keep, mention in §12
-.gitignore
-README.md
+sources/definitions/  examples.sql, jinja_demo.sql   ← delete both
+sources/macros/       grants_macro.sql               ← keep
+.gitignore   README.md
 ```
 
-> **Say:** "That folder layout is not a convention we invented — Snowflake requires definitions
-> under `sources/definitions/`. It will not find them anywhere else."
+Scroll `examples.sql` without reading it aloud — point out it declares warehouses, dynamic
+tables, **roles and grants**, then delete it.
 
-Open `examples.sql` and scroll it **without reading it aloud**. Point out only that it
-declares warehouses, databases, schemas, tables, **dynamic tables, roles and grants** — then
-delete both example files.
-
-> **Say:** "Worth knowing the scope: this is not just tables. Roles and grants are declarable
-> too, which means access can live in the same reviewed file as the schema. We haven't proven
-> that part yet — I'll come back to it."
-
----
-
-## 3 — Read the manifest
-
-Open `manifest.yml`. Two things matter; skip the rest.
+In `manifest.yml` set:
 
 ```yaml
 targets:
@@ -145,27 +143,7 @@ targets:
     account_identifier: YVTSYHL-PP80681
     project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
     project_owner: ACCOUNTADMIN
-    templating_config: DEV
-
-templating:
-  configurations:
-    DEV:
-      env_suffix: "_DEV"
 ```
-
-> **Say:** "`targets` is which account and which project object. `templating` is the
-> interesting one — the same definition files can build dev and prod, with the differences
-> declared here rather than living in two divergent copies of the DDL. That is the problem
-> everyone solves badly with copy-paste."
-
-Set `project_name` to `DCM_ADMIN.PROJECTS.DEMO_CAPACITIES`, and for a simpler demo set
-`env_suffix: ""`.
-
----
-
-## 4 — Write the definitions
-
-**The only section with real typing. Paste, don't type.**
 
 Create `sources/definitions/10_capacities.sql`:
 
@@ -176,8 +154,6 @@ DEFINE DATABASE DEMO_PBI
 DEFINE SCHEMA DEMO_PBI.LND COMMENT = 'Landing - raw API payloads';
 DEFINE SCHEMA DEMO_PBI.PRE COMMENT = 'Presentation - merge targets';
 
--- Landing. The quoted mixed-case name is deliberate: it mirrors the real
--- estate, and renaming it would be a breaking change to everything downstream.
 DEFINE TABLE DEMO_PBI.LND."PBI_AllCapacities" (
     AUDIT_KEY         NUMBER(38,0)     NOT NULL,
     ROUTE             VARCHAR(200)     NOT NULL,
@@ -187,7 +163,6 @@ DEFINE TABLE DEMO_PBI.LND."PBI_AllCapacities" (
     PAYLOAD           VARIANT
 );
 
--- Presentation. This is the merge target the reports actually read.
 DEFINE TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES (
     ID                VARCHAR(36)   NOT NULL,
     NAME              VARCHAR(500),
@@ -200,34 +175,10 @@ DEFINE TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES (
 );
 ```
 
-> **Say:** "`DEFINE`, not `CREATE`. It is a description of what should be true, not an
-> instruction to do something. Snowflake works out the difference between this and reality.
->
-> And these types are not invented — they came from `GET_DDL` against the real dev database.
-> When we diffed all 53 columns of the real slice against what our pipelines claim to create,
-> they matched exactly. Which was reassuring, and also the last time anyone will ever check
-> that by hand."
+> **Say:** "`DEFINE`, not `CREATE` — a description of what should be true, not an instruction.
+> And these types aren't invented; they came from `GET_DDL` against the real dev database."
 
----
-
-## 5 — Plan
-
-Click **Plan** in the workspace (or run it as SQL).
-
-**Expect: 6 entities — 5 create, 1 alter.** Expand the JSON.
-
-> **Say:** "Nothing has happened yet. This is a dry run — it reports what it would do and
-> changes nothing. The 'alter' is Snowflake recording ownership. The extra schema is `PUBLIC`,
-> which every database gets automatically."
-
-⚠️ **Never use `PLAN DELTA`.** It skips definitions it believes unchanged and cannot see
-hand-made edits — it would report clean over a drifted database and destroy §9 entirely.
-
----
-
-## 6 — Deploy
-
-Click **Deploy**. Then verify independently — not the tool marking its own homework:
+**Plan** → 6 entities, 5 create, 1 alter. **Deploy.** Then verify independently:
 
 ```sql
 SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
@@ -236,171 +187,260 @@ WHERE  TABLE_SCHEMA IN ('LND','PRE')
 GROUP  BY 1,2 ORDER BY 1,2;
 ```
 
-**Expect 2 rows: `PBI_AllCapacities` 6, `DIM_PBI_CAPACITIES` 8.**
-
-> **Say:** "Landing and presentation, built from a text file. If someone joins next week and
-> needs an environment, that is the entire onboarding step."
+**Plan again → no changes.** Run it twice, second run does nothing.
 
 ---
 
-## 7 — Run it twice
+## 3 — Push to an empty repo
 
-Click **Plan** again. **Expect: no changes.**
+**Switch to the GitHub tab.** Show it: no files, no commits, nothing.
 
-> **Say:** "Same bar we hold every audit run to — run it twice, the second run does nothing.
-> It compared, and found nothing to do."
+> **Say:** "Everything so far lives in my workspace. It's mine — nobody can review it, nobody
+> can rebuild it, and if I lose it, it's gone."
+
+In the workspace: **connect to Git**, point at `DCM_DEMO`, commit, push.
+Message: `Initial capacities schema`.
+
+**Back to the GitHub tab. Refresh.**
+
+> **Say:** "That's the same thing you just watched me build — now it's the team's. It can be
+> reviewed, branched, rolled back, and rebuilt by anyone."
+
+Open `10_capacities.sql` **on GitHub** and let them see it rendered there. The point is that
+this is ordinary code in an ordinary repo, not a Snowflake-flavoured special case.
 
 ---
 
-## 8 — Add a view, live
+## 4 — Pull it back as a Snowflake clone
 
-Add to the same file, then Plan and Deploy:
+> **Say:** "Now the direction people find confusing. My workspace is a git client — it's how
+> *I* edit. But a scheduled job at 5am has no workspace. Snowflake needs its own copy."
+
+```sql
+CREATE GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO
+    API_INTEGRATION = GIT_API_CODEFORDATAENGG
+    GIT_CREDENTIALS = DCM_ADMIN.PROJECTS.GITHUB_PAT
+    ORIGIN          = 'https://github.com/Codefordataengg/DCM_DEMO.git';
+
+ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
+
+LS @DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/;
+```
+
+> **Say:** "No new credential, no new integration. The API integration is scoped to the whole
+> GitHub account, so a second repo just works."
+
+Now the parity check — this is the point of the section:
+
+```sql
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+```
+
+**Expect: no changes.**
+
+> **Say:** "I built that from my workspace. I'm now planning it from the git clone — a
+> completely different path — and it agrees the database is already correct. The repo and the
+> database are the same thing, verified from two directions."
+
+**Two objects, and people conflate them:**
+
+| | What it is | Used by |
+|---|---|---|
+| **Workspace** | Git client with an editor, per-user | you, interactively |
+| **`GIT REPOSITORY`** | Account-level clone | `PLAN`, `DEPLOY`, the nightly task |
+
+---
+
+## 5 — Develop on a branch
+
+In the workspace, create a branch: **`add-region-view`**.
+
+> **Say:** "Nobody edits main directly. Same discipline as application code."
+
+Add to `sources/definitions/10_capacities.sql`:
 
 ```sql
 DEFINE VIEW DEMO_PBI.PRE.V_CAPACITY_BY_REGION AS
     SELECT REGION,
-           COUNT(*)                                   AS CAPACITY_COUNT,
-           COUNT_IF(STATE = 'Active')                 AS ACTIVE_COUNT
+           COUNT(*)                    AS CAPACITY_COUNT,
+           COUNT_IF(STATE = 'Active')  AS ACTIVE_COUNT
     FROM   DEMO_PBI.PRE.DIM_PBI_CAPACITIES
     WHERE  IS_CURRENT_FLAG = 1
     GROUP  BY REGION;
 ```
 
-**Expect: 1 entity to create.**
-
-> **Say:** "Same mechanism, and now a change rather than a creation. This is the loop you'd
-> actually live in — edit the file, plan, review, deploy."
-
-Views are worth a beat: drift on a view reports the **before-and-after `SELECT`**, not just a
-column list. For a view, the query *is* the object.
+Commit and push the branch.
 
 ---
 
-## 9 — The reveal
+## 6 — Diff one: what the code changed
 
-**This is the demo. Slow down.**
+**GitHub tab.** Open the branch, click **Compare / Open pull request**.
 
-> **Say:** "Now I'll do what a colleague does on a Tuesday afternoon."
+> **Say:** "This is the diff every engineer already knows. Green lines, red lines, a reviewer,
+> an approval. Nothing about it is Snowflake-specific — which is the point. Schema changes now
+> arrive the same way application changes do."
+
+Leave the PR open on screen.
+
+> **Say:** "But notice what this diff does *not* tell you. It says I added twelve lines of SQL.
+> It does not tell you what will happen to the database when that lands. Those are different
+> questions."
+
+---
+
+## 7 — Diff two: what the database will do
+
+Merge the PR on GitHub. **Then back to Snowsight:**
+
+```sql
+ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
+
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+```
+
+**Expect: 1 entity to create — the view.**
+
+> **Say:** "Twelve lines of SQL in git became exactly one change to the database: create one
+> view. That's the second diff. A reviewer can see both — what was written, and what it will
+> do — before anything happens."
+
+Deploy it, then confirm:
+
+```sql
+SELECT * FROM DEMO_PBI.PRE.V_CAPACITY_BY_REGION;
+```
+
+> **Note if `FETCH` slips your mind:** the clone doesn't update on its own. That's why the
+> nightly job fetches before every plan — otherwise it compares the database to a stale copy of
+> the repo and calls the difference drift.
+
+**The round trip is now complete: Snowflake → git → Snowflake → git → Snowflake.**
+
+---
+
+## 8 — Diff three: the reveal
+
+**Slow down. This is the demo.**
+
+> **Say:** "Everything so far went through git. Now watch someone skip it."
 
 ```sql
 ALTER TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES
     ADD COLUMN QUICK_FIX_DONT_ASK VARCHAR(100);
 ```
 
-> **Say before planning:** "Nothing in our current pipelines would ever notice that. Not
-> tonight, not next month. Watch."
+**Switch to the GitHub tab. Refresh it.**
 
-Click **Plan**.
+> **Say — this is the moment:** "Nothing. No commit, no PR, no diff. As far as git is
+> concerned, nothing happened. And every pipeline we run tonight will be green."
 
-**Expect:** an `ALTER TABLE`, and in the JSON:
+**Back to Snowsight:**
+
+```sql
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+```
+
+**Expect an `ALTER TABLE`, and in the JSON:**
 
 ```
 columns: removed "QUICK_FIX_DONT_ASK"   datatype VARCHAR(100), nullable true
 ```
 
-> **Say:** "Not 'a table differs'. The column name, its datatype, and which direction the fix
-> runs. That is the difference between an alert worth waking for and one people mute."
+> **Say:** "The column name, the datatype, and which direction the fix runs. Git couldn't see
+> this — there was no commit to see. This is the third diff, and it's the one we've never had."
 
-Deploy to revert, then:
+---
+
+## 9 — Put it back
+
+Deploy.
 
 > **Say, and do not skip it:** "Reverting that was a `DROP COLUMN`. If it had held data, that
-> data is gone. Which is exactly why the scheduled job only ever runs `PLAN`. **Deploying is a
-> decision a person makes after reading a plan.** We never schedule it."
+> data is gone. Which is why the scheduled job only ever runs `PLAN`. **Deploy is a decision a
+> person makes after reading a plan.** We never schedule it."
 
 ---
 
 ## 10 — The one that surprises people
-
-> **Say:** "You'd assume dropping a column is the easy case. It's the hard one."
 
 ```sql
 -- REGION is column 5 of 8
 ALTER TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES DROP COLUMN REGION;
 ```
 
-Click **Plan**. **Expect an error, not a changeset:**
+Plan. **Expect an error, not a changeset:**
 
 ```
 Unsupported feature 'CREATE OR ALTER TABLE column add before end of column list'.
 ```
 
-> **Say:** "Snowflake can only *append* columns. Putting `REGION` back in position 5 is a
-> reorder, and that's unsupported — so this cannot be auto-reverted at all. And notice the plan
-> didn't report drift, it **failed** — which means any other drift in that file went unchecked
-> behind it.
+> **Say:** "Snowflake can only *append* columns, so restoring `REGION` to position 5 is a
+> reorder — unsupported. This cannot be auto-reverted at all. And the plan didn't report drift,
+> it **failed** — so any other drift in that file went unchecked behind it.
 >
-> In the real slice, **45 of 53 columns are not the last column in their table.** So this isn't
-> the edge case. It's the common one. Any monitor that only asks 'was the changeset empty?'
-> reads the worst outcome as a broken job."
+> In the real slice, **45 of 53 columns are not last in their table.** This is the common case,
+> not the edge case."
 
-Recover on screen — it makes the point:
+Recover on screen: `DROP TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES;` then Deploy.
+
+> **Say:** "Empty table, two steps. With data: unload, drop, redeploy, reload. Planned
+> maintenance, not a 3am fix."
+
+---
+
+## 11 — Every morning, unattended
+
+Switch to the **real** project.
 
 ```sql
-DROP TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES;
-```
-…then Deploy.
+SELECT * FROM DCM_ADMIN.AUDIT.V_DCM_MONITOR_HEALTH;
 
-> **Say:** "Empty table, so that was two steps. On a table with data it's unload, drop,
-> redeploy, reload. Planned maintenance, not a 3am fix."
+SELECT CHECK_ID, CHECKED_AT_UTC, VERDICT, ENTITIES_CHANGED, NOTIFIED
+FROM   DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
+ORDER  BY CHECKED_AT_UTC DESC LIMIT 10;
+```
+
+> **Say:** "05:00 UTC, every day. Fetch main, plan, log the result, email if it isn't clean.
+> `PLAN` only — never deploy."
+
+Then the finding that forced this design:
+
+```sql
+SELECT PHASE, COUNT(*) AS N
+FROM   TABLE(DCM_ADMIN.INFORMATION_SCHEMA.DCM_DEPLOYMENT_HISTORY(
+             project_name => 'DCM_ADMIN.PROJECTS.PBI_CAPACITIES', result_limit => 100))
+GROUP  BY 1;
+```
+
+> **Say:** "`DEPLOY` rows only. Snowflake keeps a complete immutable record of every
+> deployment — and records **no plans at all**. The drift check is the one operation it
+> forgets, which is awkward when drift detection is the whole point. So we keep our own log.
+> It answers *'when did this drift start?'* — the question that took seven months last time."
+
+Show the alert email, and — if you're willing, it lands well:
+
+> "The health view exists because we got it wrong. The task sat suspended for a day and it
+> cheerfully reported `OK`, because it measured whether the log was recent, not whether the job
+> was still running. Same mistake as `IF NOT EXISTS`."
 
 ---
 
-## 11 — Put it under version control
+## 12 — Close honestly
 
-In the workspace, connect to Git and push.
-
-> **Say:** "Everything so far lived in a workspace, which is mine. This makes it the team's.
-> From here the definitions are reviewed in pull requests like any other code — and the same
-> plan output can be posted to the PR so a reviewer sees exactly what will change before
-> approving it."
-
-Point out the direction, because it is the thing people get wrong:
-
-```
-edit → commit → GitHub → FETCH → Snowflake
-                                     │
-        there is no path back ───────┘
-```
-
-> **Say:** "One way only. A hand-made `ALTER` never flows back into the repo. That asymmetry is
-> precisely why drift detection has to exist."
-
----
-
-## 12 — What this looks like at scale
-
-Switch to the real repo and the findings page.
-
-> **Say:** "What you just watched is the toy version. The real slice is 8 tables, 53 columns,
-> across landing, staging and presentation — and it runs a drift check every night at 05:00."
-
-Show, briefly:
-
-| Show | Point |
-|---|---|
-| `FINDINGS.md` | Ten findings, dated and evidenced. Three came from deliberately breaking it |
-| `CTL_DCM_DRIFT_LOG` | **Snowflake records every deploy and no plans at all** — so the drift check is the one operation it forgets. We keep our own log, which answers *"when did this drift start?"* |
-| `V_DCM_MONITOR_HEALTH` | Catches the monitor being switched off — because a stopped monitor and a clean one are both silence |
-| `sources/macros/` | Roles and grants are declarable too. **Untested by us**, and worth saying so |
-
-> **Say, if you're willing — it lands well:** "The health check exists because we got it wrong.
-> The task sat suspended for a day and the view cheerfully reported `OK`, because it only
-> measured whether the log was recent, not whether the job was still running. Same mistake as
-> `IF NOT EXISTS` — something reporting success without checking what it claims to check."
-
----
-
-## 13 — Close honestly
-
-> **Say:** "What this is: a proof of concept. 8 tables, no data, one slice, in a personal
-> account. DCM Projects is a **preview** feature.
+> **Say:** "Three diffs. Git shows what someone wrote. The plan shows what will happen. The
+> drift check shows what happened *without* either — and that third one is what we've never
+> been able to see.
 >
-> What it is not: proven for grants, tasks or streams. Untested at 64 tables. And the
-> un-revertible recovery path has only been run on empty tables — on a table with real data,
-> that rehearsal is one we still owe ourselves.
+> What this is: a proof of concept. 8 tables, no data, one slice, personal account. DCM
+> Projects is a **preview** feature. Grants, tasks and streams are unproven. The un-revertible
+> recovery path has only been rehearsed on empty tables.
 >
-> What it does prove: the second guarantee is buyable. The database can tell us every morning
-> whether it still matches the repo, and name the column when it doesn't."
+> What it proves: the database can tell us every morning whether it still matches the repo, and
+> name the column when it doesn't."
 
 ---
 
@@ -408,11 +448,12 @@ Show, briefly:
 
 | Symptom | Cause | Do |
 |---|---|---|
-| Plan shows creates you didn't expect | A rehearsal left objects behind | `DROP DATABASE DEMO_PBI;` then §6 |
-| Plan errors with a file and line | Un-revertible drift from an earlier run | `DROP TABLE` the named table, Deploy |
-| Deploy fails on the database | Name collision with a rehearsal | Change `DEMO_PBI` to `DEMO_PBI2` throughout |
-| Workspace won't save or commit | Session expired | Reload Snowsight; the files persist |
-| Everything is wrong | — | `DROP DATABASE DEMO_PBI;` → §5. Full rebuild ≈ 15 seconds |
+| Plan shows unexpected creates | Rehearsal objects left behind | `DROP DATABASE DEMO_PBI;` then §2 Deploy |
+| Plan errors with file and line | Un-revertible drift from earlier | `DROP TABLE` the named table, Deploy |
+| `LS @...DEMO_REPO/...` empty | Clone stale, or pushed to a branch | `ALTER GIT REPOSITORY ... FETCH;` and check the branch |
+| Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
+| Plan from git disagrees with workspace | Forgot to `FETCH` after merging | `FETCH`, re-plan. **Good teaching moment — say so out loud** |
+| Everything is wrong | — | `DROP DATABASE DEMO_PBI;` → §2. Rebuild ≈ 15 seconds |
 
 **Golden rule:** never debug live. Say *"good example of why every run gets logged"*, show the
 log, move on. A failed step becomes a demonstration of the audit trail.
@@ -423,10 +464,10 @@ log, move on. A failed step becomes a demonstration of the audit trail.
 
 | Question | Answer |
 |---|---|
-| "Why not Terraform?" | Terraform suits account-level objects — warehouses, roles, integrations — and keeps an external state file. DCM is native, stateless, and covers in-database objects. Common practice is both. |
-| "Does this replace Matillion?" | No. Matillion moves data. This manages the shape of the tables it lands in. |
-| "Can it roll back?" | Not as a command. You revert the commit and deploy again — git is the rollback mechanism. |
+| "Why not just use git hooks / CI?" | You can, and Snowflake publishes GitHub Actions for it — plan on PR, deploy on merge. But CI only sees changes that go *through* CI. Drift is the case that doesn't. |
+| "Why not Terraform?" | Terraform suits account-level objects and keeps an external state file. DCM is native and stateless. Common practice is both. |
+| "Does this replace Matillion?" | No. Matillion moves data; this manages the shape of the tables it lands in. |
+| "Can it roll back?" | Not as a command — revert the commit and deploy. Git *is* the rollback mechanism. |
 | "Two people deploy at once?" | Untested. Genuine gap — say so. |
 | "What does it cost?" | Warehouse time. A plan over 8 tables takes about three seconds. |
 | "Point it at production today?" | No. Preview feature, and `DEPLOY` drops columns. Scheduled `PLAN` is the safe first step — it's read-only. |
-| "What about the data in the tables?" | DCM manages structure only. It never reads or writes rows. |
