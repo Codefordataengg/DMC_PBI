@@ -206,12 +206,13 @@ sequenceDiagram
 | [`../manifest.yml`](../manifest.yml) | `manifest_version: 2`, target `YVTSYHL-PP80681` |
 | [`../sources/definitions/`](../sources/definitions/) | The declared state — 12 entities |
 | [`../03_RUN_ACCEPTANCE_TEST.md`](../03_RUN_ACCEPTANCE_TEST.md) | Five steps via CLI |
-| [`../04_SNOWSIGHT_RUN.sql`](../04_SNOWSIGHT_RUN.sql) | Same five steps as pure SQL |
+| [`../04_SNOWSIGHT_RUN.sql`](../04_SNOWSIGHT_RUN.sql) | ~~Same five steps as pure SQL~~ **superseded** — stage-based, stage dropped |
 | [`../10_AUDIT_AND_MONITOR.sql`](../10_AUDIT_AND_MONITOR.sql) | Log, views, drift procedure, task |
 | [`../11_ALERTING.sql`](../11_ALERTING.sql) | Email integration, alert body, health view |
 | [`../12_GIT_INTEGRATION.sql`](../12_GIT_INTEGRATION.sql) | Secret, API integration, git clone, git-sourced task |
 | [`../90_INDUCE_DRIFT.sql`](../90_INDUCE_DRIFT.sql) | Deliberate drift for testing |
-| [`../FINDINGS.md`](../FINDINGS.md) | **F1–F7.** Dated, evidenced results |
+| [`../FINDINGS.md`](../FINDINGS.md) | **F1–F10.** Dated, evidenced results |
+| [`../DEMO_RUNSHEET.md`](../DEMO_RUNSHEET.md) | Live demo script — DCM and git, the full round trip |
 
 ---
 
@@ -227,6 +228,9 @@ sequenceDiagram
 | F6 | **DCM records `DEPLOY`, never `PLAN`** | The audit table is mandatory |
 | F7 | Dropping a non-last column is un-revertible | `ERROR` is the common case |
 | F8 | Snowflake `IDENTITY` is not monotonic across sessions | Silently suppressed a `DRIFT` alert |
+| F9 | The monitor never ran and the health view reported `OK` | Task state is now a health input |
+| F10 | Views work, report the SQL diff, share the reorder limit | Views are safer only in that reverting one loses no data |
+| F11 | Ran unattended two consecutive nights, ~30s per run | The schedule is proven, not asserted |
 
 ---
 
@@ -237,7 +241,8 @@ sequenceDiagram
 - DCM Projects is a **preview** feature (announced 2026-03-20).
 - Runs in a personal account. `SNOWUTILS_RO`/`SNOWUTILS_ADMIN` grants were dropped, so the
   grant layer is entirely untested.
-- **Live as of 2026-08-23:** git is the only source (the stage is dropped) and the nightly
-  task is resumed at 05:00 UTC. It has not yet survived an unattended overnight run.
+- **Live as of 2026-08-25:** git is the only source (the stage is dropped) and the nightly task
+  has run unattended on two consecutive nights, ~30s each, both `CLEAN` (F11). Still unproven:
+  a scheduled run finding real drift and emailing without anyone present.
 - The `ERROR` recovery path has been exercised only on empty tables. On a table holding data
   it means unload → drop → redeploy → reload, and that has not been rehearsed.

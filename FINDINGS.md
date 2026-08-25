@@ -325,6 +325,25 @@ the one it was blind to.
 | Window tightened | 30h → **26h**. A daily task may run late; it may not miss a whole day. |
 | Verified both ways | The view returned `TASK_NOT_SCHEDULED` while suspended, and `OK` with `NEXT_RUN_UTC = 2026-08-24 05:00 UTC` once repointed and resumed. |
 
+### F9 addendum — the fix itself was incomplete (2026-08-25)
+
+The remediation above claimed the task was defined in `12_GIT_INTEGRATION.SQL` §6 "and
+**nowhere else**". That was false when written. The duplicate was removed from
+`11_ALERTING.sql` and **missed in `10_AUDIT_AND_MONITOR.sql`**, which still carried a
+`CREATE OR REPLACE TASK` pointing at the dropped stage and the non-alerting procedure.
+
+Re-running that file would have suspended the live task, repointed it at a stage that no
+longer exists, and silently removed alerting — the same failure, from a different file.
+
+Found by grepping which files define the same object, not by anything failing. **The single
+ownership rule was stated but never verified.** A rule nobody checks is a comment.
+
+```
+grep -ln "CREATE OR REPLACE TASK DCM_ADMIN.AUDIT.TASK_DCM_DRIFT_CHECK" *.sql
+```
+
+That one-liner belongs in any future audit of this repo.
+
 **The pattern, stated plainly.** Three times now in this build the same shape has appeared:
 `IF NOT EXISTS` that cannot detect drift; alert-then-succeed hiding a seven-month dashboard
 freeze; `ORDER BY CHECK_ID` suppressing an alert while reporting success (F8); and now a health
@@ -379,3 +398,30 @@ manual `DROP` and redeploy a table does.
 **Demo consequence:** a view is a good object to author live, and a good object to drift — but
 drift it by **adding** a column, not removing a leading one, unless the `ERROR` path is the
 point being made.
+
+---
+
+## F11 — The chain runs unattended. Two consecutive nights, no intervention. (2026-08-25, verified)
+
+The last unproven thing about the POC as built. It has now run on its own.
+
+```
+TASK_HISTORY(TASK_NAME => 'TASK_DCM_DRIFT_CHECK')
+
+STATE       SCHEDULED_TIME              COMPLETED_TIME              ERROR
+SCHEDULED   2026-08-25 05:00 UTC        —                           —
+SUCCEEDED   2026-08-25 05:00 UTC        05:00:31  (31s)             none
+SUCCEEDED   2026-08-24 05:00 UTC        05:00:30  (30s)             none
+```
+
+Both runs fetched `main`, planned against the live database, wrote a row, and found `CLEAN`.
+`V_DCM_MONITOR_HEALTH` reads `OK` with `NEXT_RUN_UTC` populated. **~30 seconds per run.**
+
+**What this closes.** F9 was the same task sitting suspended while the health view reported
+`OK`. The fix is now demonstrated over two consecutive nights rather than asserted from a
+single manual invocation.
+
+**What it does not close.** Every run so far returned `CLEAN`, so the *unattended alerting*
+path — a scheduled run finding real drift and successfully emailing — has still only been
+proven by manual call, never by the task itself. The remaining rehearsal is to leave a
+deliberate drift in place overnight and confirm the email arrives without anyone present.

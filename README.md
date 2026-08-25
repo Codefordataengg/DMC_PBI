@@ -78,7 +78,12 @@ already offer, and the POC has answered its question in the negative. That is a 
 | `manifest.yml` | `manifest_version: 2`. Needs the real account identifier filling in. |
 | `sources/definitions/*.sql` | The declared state as `DEFINE` statements. Location is fixed by Snowflake — definition files **must** sit under `sources/definitions/`. |
 | `03_RUN_ACCEPTANCE_TEST.md` | The five steps via the `snow` CLI. |
-| `04_SNOWSIGHT_RUN.sql` | The same five steps as pure SQL, for a Snowsight worksheet. Needs the definition files on a stage first (§0.3). **Self-contained — includes the step 4 drift statements inline.** |
+| `04_SNOWSIGHT_RUN.sql` | **Superseded 2026-08-25.** Stage-based; the stage was dropped when git became the source of truth. Kept for its commentary on what each acceptance step proves. |
+| `10_AUDIT_AND_MONITOR.sql` | Drift log, column-grain views, check procedure. **Does not define the task.** |
+| `11_ALERTING.sql` | Email integration, alert body, health view. **Does not define the task.** |
+| `12_GIT_INTEGRATION.sql` | Secret, API integration, git clone, git-sourced procedure — and **the only definition of `TASK_DCM_DRIFT_CHECK`**. |
+| `docs/DCM_ARCHITECTURE.md` | Diagrams, verdict decision tree, failure modes, findings index. |
+| `target-state/` | The `GET_DDL` capture, verbatim. Evidence — never edit. |
 | `90_INDUCE_DRIFT.sql` | Step 4. The hand edits the POC is judged on. |
 | `FINDINGS.md` | Dated results. Write to it as you go. |
 | `DEMO_RUNSHEET.md` | **Live demo script** — 12 sections, timings, talking points, expected output, and what to do when a step misbehaves in front of an audience. |

@@ -1,4 +1,21 @@
 /* ============================================================================
+   SUPERSEDED 2026-08-25 — KEPT FOR REFERENCE, DO NOT RUN AS-IS.
+
+   Every path in this file reads '@DCM_ADMIN.PROJECTS.PBI_CAPACITIES_SRC', a
+   stage that was DROPPED on 2026-08-23 when git became the single source of
+   truth. Running it will fail at the first PLAN.
+
+   The live equivalents:
+     acceptance test   03_RUN_ACCEPTANCE_TEST.md   (CLI, --from a local dir)
+     git-sourced paths 12_GIT_INTEGRATION.sql      '@...PBI_REPO/branches/main/'
+     live demo         DEMO_RUNSHEET.md
+
+   To revive it, replace every stage path with the git path above. Kept because
+   the section-by-section commentary on what each step proves is still the
+   clearest written account of the acceptance test.
+   ============================================================================ */
+
+/* ============================================================================
    THE WHOLE ACCEPTANCE TEST, AS SQL — for running in a Snowsight worksheet.
 
    Same five steps as 03_RUN_ACCEPTANCE_TEST.md, no CLI needed after setup.

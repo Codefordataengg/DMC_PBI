@@ -210,15 +210,18 @@ $$;
    heartbeat monitor, so a drift check never races a deployment.
    ============================================================================ */
 
-CREATE OR REPLACE TASK DCM_ADMIN.AUDIT.TASK_DCM_DRIFT_CHECK
-    WAREHOUSE = COMPUTE_WH
-    SCHEDULE  = 'USING CRON 0 5 * * * UTC'
-    COMMENT   = 'Nightly DCM drift check. Writes CTL_DCM_DRIFT_LOG. Never deploys.'
-AS
-    CALL DCM_ADMIN.AUDIT.SP_DCM_DRIFT_CHECK(
-        'DCM_ADMIN.PROJECTS.PBI_CAPACITIES',
-        '@DCM_ADMIN.PROJECTS.PBI_CAPACITIES_SRC'
-    );
+/* THE TASK IS NOT DEFINED HERE.
 
--- Tasks are created suspended. Enable deliberately:
---   ALTER TASK DCM_ADMIN.AUDIT.TASK_DCM_DRIFT_CHECK RESUME;
+   It lives in 12_GIT_INTEGRATION.sql section 6, and nowhere else.
+
+   This file used to carry its own CREATE OR REPLACE TASK, pointing at a stage
+   that has since been dropped and at the non-alerting procedure. Re-running this
+   file would have suspended the live task (CREATE OR REPLACE TASK always creates
+   suspended), repointed it at a stage that no longer exists, and removed the
+   alerting - reproducing F9 exactly.
+
+   F9 was recorded as fixed when the duplicate was removed from 11_ALERTING.sql.
+   This second copy was missed. Found 2026-08-25 by auditing which files define
+   the same object; see FINDINGS.md F9.
+
+   Rule: one object, one owning file. */
