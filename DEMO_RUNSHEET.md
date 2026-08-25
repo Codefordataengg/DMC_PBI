@@ -36,8 +36,8 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 | — | [Pre-flight](#pre-flight) | 15 | alone, before anyone joins |
 | 1 | [The problem, in 90 seconds](#1--the-problem-in-90-seconds) | 3 | ⏩ |
 | 2 | [Build it in Snowflake](#2--build-it-in-snowflake) | 8 | ⏩ |
-| 3 | [**Push to an empty repo**](#3--push-to-an-empty-repo) | 4 | ⏩ |
-| 4 | [**Pull it back, both ways**](#4--pull-it-back-both-ways) — UI *and* SQL | 7 | ⏩ |
+| 3 | [**Push the first commit**](#3--push-the-first-commit) | 4 | ⏩ |
+| 4 | [**The copy a machine can read**](#4--the-copy-a-machine-can-read) | 5 | ⏩ |
 | 5 | [Develop on a branch](#5--develop-on-a-branch) | 4 | |
 | 6 | [**Diff one — what the code changed**](#6--diff-one--what-the-code-changed) | 3 | ⏩ |
 | 7 | [**Diff two — what the database will do**](#7--diff-two--what-the-database-will-do) | 4 | ⏩ |
@@ -55,12 +55,17 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 
 ### A. Create an empty GitHub repo — do this first
 
-**`DCM_DEMO`, private, and genuinely empty** — no README, no `.gitignore`, no licence.
-"GitHub shows you nothing" is the opening shot of §3 and a repo with a README ruins it.
+**`DCM_DEMO`, private, and tick "Add a README".**
+
+The README matters. A repo with **no commits has no `main` branch**, and both the workspace and
+`CREATE GIT REPOSITORY` need a branch to point at. One README file is enough to create it.
+
+You still get the opening shot in §3 — *"one README and nothing else"* — you just can't say
+the repo is literally empty.
 
 Use `Codefordataengg`. Your existing API integration is scoped to
-`https://github.com/Codefordataengg`, **not** to one repo — so a new repo needs no new secret,
-no new integration. Mention that in §4; it is a good detail.
+`https://github.com/Codefordataengg`, **not** to one repo — so a new repo needs no new secret
+and no new integration. Mention that in §2; it is a good detail.
 
 ### B. Reset Snowflake
 
@@ -132,16 +137,31 @@ DROP DATABASE DEMO_SCRATCH;
 
 ## 2 — Build it in Snowflake
 
-**Snowsight → Projects → Workspaces.**
+### Create a git-backed workspace — this order is not optional
 
-You already have a workspace — Snowflake creates `My Workspace` automatically the first time
-anyone opens this page. **You do not create one.** It lives at `USER$.PUBLIC.DEFAULT$`, which
-is a per-user database only you can see.
+**Snowsight → Projects → Workspaces → `From Git repository`.**
 
-Inside it: **`+ Add new` → DCM Project**, and name it `DCM_DEMO`.
+| Field | Value |
+|---|---|
+| Repository URL | `https://github.com/Codefordataengg/DCM_DEMO.git` |
+| API integration | `GIT_API_CODEFORDATAENGG` |
+| Authentication | Personal access token |
+| Credentials | `DCM_ADMIN.PROJECTS.GITHUB_PAT` |
 
-> **Say:** "This is a folder in my personal workspace. Nobody else can see it, and nothing
-> scheduled can read it. That matters later."
+> ⚠️ **You cannot connect a workspace to git later.** Snowflake only offers the git connection
+> when the workspace is *created*. Author your files in the default `My Workspace` and there is
+> no way to push them — you would have to start again. This is the one ordering mistake in the
+> whole demo that cannot be recovered live.
+
+> **Say:** "No new credential, no new integration — the API integration is scoped to the whole
+> GitHub account, so a second repo just works."
+
+The workspace opens showing the README, and a **Changes** tab at the top of the folder view.
+That tab is the git client: branch selector, commit, push.
+
+### Now scaffold the project inside it
+
+**`+ Add new` → DCM Project**, name it `DCM_DEMO`.
 
 Snowflake scaffolds:
 
@@ -277,76 +297,47 @@ GROUP  BY 1,2 ORDER BY 1,2;
 
 ---
 
-## 3 — Push to an empty repo
+## 3 — Push the first commit
 
-**Switch to the GitHub tab.** Show it: no files, no commits, nothing.
+**Switch to the GitHub tab.** One README. No SQL, no manifest, nothing you just built.
 
-> **Say:** "Everything so far lives in my workspace. It's mine — nobody can review it, nobody
-> can rebuild it, and if I lose it, it's gone."
+> **Say:** "Everything I've written so far lives in my workspace. It's mine — nobody can review
+> it, nobody can rebuild it, and if I lose it, it's gone."
 
-In the workspace: **connect to Git**, point at `DCM_DEMO`, commit, push.
-Message: `Initial capacities schema`.
+Back in the workspace: **Changes** tab at the top of the folder view.
 
-**Back to the GitHub tab. Refresh.**
+1. Review the listed files — `manifest.yml`, `sources/definitions/10_capacities.sql`
+2. Commit message: `Initial capacities schema`
+3. **Push**
 
-> **Say:** "That's the same thing you just watched me build — now it's the team's. It can be
-> reviewed, branched, rolled back, and rebuilt by anyone."
+> Snowflake shows the username and email it will commit with. Worth pointing at — these commits
+> are attributable, like any other.
 
-Open `10_capacities.sql` **on GitHub** and let them see it rendered there. The point is that
-this is ordinary code in an ordinary repo, not a Snowflake-flavoured special case.
+**Back to GitHub. Refresh.**
+
+> **Say:** "Same thing you just watched me build — now it's the team's. Reviewable, branchable,
+> restorable by anyone."
+
+Open `sources/definitions/10_capacities.sql` **on GitHub** and let them see it rendered there.
+The point is that this is ordinary code in an ordinary repo, not a Snowflake-flavoured special
+case.
 
 ---
 
-## 4 — Pull it back, both ways
+## 4 — The copy a machine can read
 
-> **Say:** "Now the direction people find confusing. There are two ways to bring that repo into
-> Snowflake, they are **not** alternatives, and you will usually want both. Let me show you why."
-
-### 4a — The UI route: a workspace from a git URL
-
-**Projects → Workspaces → `+ Add new` → From Git repository.**
-
-Fill in:
-
-| Field | Value |
-|---|---|
-| Repository URL | `https://github.com/Codefordataengg/DCM_DEMO.git` |
-| API integration | `GIT_API_CODEFORDATAENGG` |
-| Authentication | Personal access token |
-| Credentials | `DCM_ADMIN.PROJECTS.GITHUB_PAT` |
-
-**Create.** The files appear in the editor — the same files you pushed in §3, now arriving from
-GitHub rather than from your local session.
-
-> **Say:** "No new credential and no new integration. The API integration is scoped to the
-> whole GitHub account rather than one repo, so a second repo just works."
-
-Show the git controls in the workspace toolbar — **branch selector, Pull, Commit, Push**. Pull
-once, so they see it fetch.
-
-> **Say:** "This is a git client with a SQL editor attached. Everything you'd expect — branch,
-> pull, commit, push — without leaving Snowflake."
-
-Run **Plan** from the workspace button.
-
-**Expect: no changes.**
-
-> **Say:** "I built this from a *different* workspace in §2. This one came from GitHub, and it
-> agrees the database is already correct. Same truth, verified from two directions."
-
-### 4b — The SQL route: a repository object
-
-> **Say:** "So why would I need anything else? Because that workspace is **mine**."
+> **Say:** "My workspace is connected to git, so I'm covered. Except I'm not — and this is the
+> distinction that catches people out."
 
 ```sql
 SHOW GIT REPOSITORIES IN ACCOUNT;
 ```
 
-**Expect: the workspace you just created does NOT appear here.**
+**Expect: the workspace you are standing in does NOT appear.**
 
 > **Say:** "A workspace lives in a personal, per-user database. It exists for a human with a
-> browser open. A scheduled job at 5am has no browser and no workspace — so Snowflake needs an
-> account-level copy that belongs to the account, not to me."
+> browser open. A scheduled job at 5am has neither — so Snowflake needs a second copy that
+> belongs to the account rather than to me."
 
 ```sql
 CREATE GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO
@@ -361,7 +352,7 @@ LS @DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/;
 
 Run `SHOW GIT REPOSITORIES IN ACCOUNT;` again — **now it appears.**
 
-And the same parity check, from this third path:
+Then the parity check, which is the point of the section:
 
 ```sql
 EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
@@ -369,6 +360,10 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 ```
 
 **Expect: no changes.**
+
+> **Say:** "I built that from my workspace. I'm now planning it from a completely different
+> path — the account's own clone, pulled from GitHub — and it agrees the database is already
+> correct. Same truth, verified from two directions."
 
 ### Which is which
 
@@ -379,16 +374,19 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 | Belongs to | **you** | the account |
 | Good for | editing, branching, committing | tasks, procedures, automation |
 | Path form | `snow://workspace/...` | `@DB.SCHEMA.REPO/branches/main/` |
-| Updates by | **Pull** button | `ALTER ... FETCH` |
+| Updates by | **Push / Pull** in the Changes tab | `ALTER ... FETCH` |
 | Survives you leaving | no | yes |
 
 > **Say:** "The workspace is where a person works. The repository object is what the machine
 > reads at five in the morning. Delete my workspace and the nightly check carries on. Delete
 > the repository object and it stops."
 
+---
+
 ## 5 — Develop on a branch
 
-In the workspace, create a branch: **`add-region-view`**.
+In the workspace: **Changes** tab → repository dropdown → **+ New** → name it
+**`add-region-view`**.
 
 > **Say:** "Nobody edits main directly. Same discipline as application code."
 
@@ -404,7 +402,7 @@ DEFINE VIEW DEMO_PBI.PRE.V_CAPACITY_BY_REGION AS
     GROUP  BY REGION;
 ```
 
-Commit and push the branch.
+**Changes** tab → commit message `Add region summary view` → **Push**.
 
 ---
 
@@ -656,7 +654,8 @@ Show the alert email, and — if you're willing, it lands well:
 | Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
 | *From Git repository* won't create | API integration or credential not selectable | Skip 4a, do 4b in SQL, and say the UI is a convenience over the same objects |
 | Workspace shows an old branch | Branch selector still on the previous one | Switch it, then **Pull** — worth narrating, it is the same mistake as forgetting `FETCH` |
-| Two project folders confuse you mid-demo | §2 makes one, §4a makes a second workspace | §2's is `DCM_DEMO` in *My Workspace*; §4a creates a **separate workspace** from the repo URL |
+| **No Changes tab / no way to push** | Workspace was created without git — **cannot be fixed** | Create a new workspace *From Git repository*, re-create the two files there. Rehearse §2 so this never happens live |
+| Workspace creation fails on the repo | Repo has no commits, so no `main` branch | Add a README on GitHub, retry |
 | Loose `.sql` files in the tree | Earlier experiments outside the project folder | Delete them before demoing — DCM only reads `sources/definitions/`, but a cluttered tree is hard to narrate |
 | Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set it to `""` in the manifest, re-plan |
 | `Files: 0, Errors: 0` in Output | `sources/definitions/` is empty | Expected before §2's definitions exist. Not an error |
