@@ -7,7 +7,7 @@ Nothing here touches `DEVELOP` at Snowy or any Matillion pipeline.
 
 ## 1. The problem in one picture
 
-The pipelines create tables with `CREATE TABLE IF NOT EXISTS`. Against a table that already
+The pipelines create tables with `CREATE TABLE IF NOT EXISTS` — 70 of them across 8 pipeline files. Against a table that already
 exists, that statement **does nothing at all** — it does not inspect the table, and it cannot.
 
 ```mermaid
@@ -273,7 +273,7 @@ sequenceDiagram
 | [`../11_ALERTING.sql`](../11_ALERTING.sql) | Email integration, alert body, health view |
 | [`../12_GIT_INTEGRATION.sql`](../12_GIT_INTEGRATION.sql) | Secret, API integration, git clone, git-sourced task |
 | [`../90_INDUCE_DRIFT.sql`](../90_INDUCE_DRIFT.sql) | Deliberate drift for testing |
-| [`../FINDINGS.md`](../FINDINGS.md) | **F1–F10.** Dated, evidenced results |
+| [`../FINDINGS.md`](../FINDINGS.md) | **F1–F13.** Dated, evidenced results |
 | [`../DEMO_RUNSHEET.md`](../DEMO_RUNSHEET.md) | Live demo script — DCM and git, the full round trip |
 
 ---
@@ -294,6 +294,7 @@ sequenceDiagram
 | F10 | Views work, report the SQL diff, share the reorder limit | Views are safer only in that reverting one loses no data |
 | F11 | Ran unattended two consecutive nights, ~30s per run | The schedule is proven, not asserted |
 | F12 | `IF NOT EXISTS` says "already exists, statement succeeded" | It is honest; the defect is that doing nothing reads as success |
+| F13 | The count was 70, not 64; the dashboard freeze was a different defect | Audit every quoted figure, including our own |
 
 ---
 

@@ -40,7 +40,7 @@ Footer: Personal Snowflake account · 8 tables · 53 columns · August 2026
 ### Slide 2 — The problem
 Title: **Our pipelines cannot see the database**
 
-64 `CREATE TABLE IF NOT EXISTS` statements across 9 pipeline files.
+70 `CREATE TABLE IF NOT EXISTS` statements across 8 pipeline files.
 
 Against a table that already exists, that statement **does nothing at all**. It does not
 inspect the table. It cannot.
@@ -59,13 +59,17 @@ precisely why the drift stays invisible: nothing breaks, so there is nothing to 
 ### Slide 3 — Two guarantees
 Title: **Only one of these was ever real**
 
+Caption above the table: *"repo" here = the Matillion pipeline repo holding the 70 DDL statements.*
+
 | Statement | Before | With DCM |
 |---|---|---|
-| "This repo can build the database" | ✅ | ✅ |
-| "The database matches this repo" | ❌ | ✅ |
+| "The pipeline repo can build the database" | ✅ | ✅ |
+| "The database still matches the pipeline repo" | ❌ | ✅ |
 
-Note beneath: A dashboard dimension in the real estate sat frozen for **seven months** behind
-a check that looked like a check.
+Note beneath — **state this precisely, the two failures are not the same mechanism**: a
+dashboard dimension in this estate sat frozen for seven months. That was a *different* defect —
+a trailing comma in a transformation that alert-then-succeed hid — but the same shape:
+something that looked like a check and never checked anything.
 
 ### Slide 4 — What DCM Projects is
 Title: **Declare the state. Let Snowflake work out the difference.**
@@ -81,7 +85,7 @@ Title: **The DDL stops living inside the ETL**
 
 Two columns.
 
-**Before** — DDL embedded in orchestration: 64 statements across 9 pipeline files, executed as
+**Before** — DDL embedded in orchestration: 70 statements across 8 pipeline files, executed as
 a side effect of a data load, no review, no diff, drift invisible.
 
 **After** — DDL in git: reviewed like application code, plan shows the impact before it lands,
@@ -226,7 +230,7 @@ DEPLOY   4      ← no PLAN rows. none.
 - So we keep our own log — it answers *"when did this drift start?"*
 
 ### Slide 16 — What we found by breaking it
-Title: **Eleven findings. Three came from deliberate sabotage.**
+Title: **Twelve findings. Four came from deliberate sabotage.**
 
 | | Finding |
 |---|---|

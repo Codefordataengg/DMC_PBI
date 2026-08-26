@@ -112,14 +112,14 @@ para(tf, "A proof of concept — what it does, what it costs,", 19, LIGHT, space
 para(tf, "and what it cannot do", 19, LIGHT)
 ln = rect(s, M, 5.35, 2.0, 0.035, SLATE)
 tf = tb(s, M, 5.72, CW, 0.9)
-para(tf, "DCM Projects  ·  8 tables  ·  53 columns  ·  11 findings", 14, LIGHT, first=True, space_after=3)
+para(tf, "DCM Projects  ·  8 tables  ·  53 columns  ·  12 findings", 14, LIGHT, first=True, space_after=3)
 para(tf, "Personal Snowflake account  ·  August 2026", 13, SLATE)
 
 # ---------------------------------------------------------------- 2 problem
 s = blank()
 y = title(s, "Our pipelines cannot see the database")
 tf = tb(s, M, y, CW, 0.6)
-para(tf, "64  CREATE TABLE IF NOT EXISTS  statements across 9 pipeline files.", 18, CHARCOAL, first=True)
+para(tf, "70  CREATE TABLE IF NOT EXISTS  statements across 8 pipeline files.", 18, CHARCOAL, first=True)
 y += 0.72
 steps = [("1", "Pipeline creates the table", "first run only"),
          ("2", "Someone adds a column by hand", "a Tuesday afternoon, no ticket"),
@@ -147,16 +147,23 @@ kicker(s, y + 0.24, "It did nothing, said so honestly, and doing nothing counted
 # ---------------------------------------------------------------- 3 guarantees
 s = blank()
 y = title(s, "Only one of these was ever real")
-y = table(s, M, y+0.35, CW,
+tf = tb(s, M, y, CW, 0.5)
+para(tf, "\u201crepo\u201d here = the Matillion pipeline repo that holds the 70 DDL statements.",
+     14, SLATE, first=True)
+y = table(s, M, y+0.62, CW,
     [["", "Before", "With DCM"],
-     ["“This repo can build the database”", "YES", "YES"],
-     ["“The database matches this repo”", "NO", "YES"]],
-    [CW-4.2, 2.1, 2.1], rh=0.72, size=17)
-tf = tb(s, M, y+0.55, CW, 1.4)
+     ["“The pipeline repo can build the database”", "YES", "YES"],
+     ["“The database still matches the pipeline repo”", "NO", "YES"]],
+    [CW-4.2, 2.1, 2.1], rh=0.72, size=16)
+tf = tb(s, M, y+0.5, CW, 1.5)
 para(tf, "Two different guarantees. Only the first was ever true —", 18, CHARCOAL, first=True, space_after=6)
-para(tf, "and nothing in the estate could tell you the difference.", 18, CHARCOAL, space_after=18)
-para(tf, "A dashboard dimension in the real estate sat frozen for seven months "
-          "behind a check that looked like a check.", 15, SLATE)
+para(tf, "and nothing in the estate could tell you the difference.", 18, CHARCOAL, space_after=16)
+para(tf, "Related, and the reason we went looking: a dashboard dimension in this estate sat frozen",
+     14, SLATE, space_after=2)
+para(tf, "for seven months. A different defect — a trailing comma that alert-then-succeed hid —",
+     14, SLATE, space_after=2)
+para(tf, "but the same shape: something that looked like a check and never checked anything.",
+     14, SLATE)
 
 # ---------------------------------------------------------------- 4 what is DCM
 s = blank()
@@ -176,7 +183,7 @@ y = title(s, "The DDL stops living inside the ETL")
 cw2 = (CW - 0.45) / 2
 for i, (hd, tone, items) in enumerate([
     ("BEFORE", SLATE, ["DDL embedded in orchestration",
-                       "64 statements, 9 pipeline files",
+                       "70 statements, 8 pipeline files",
                        "Runs as a side effect of a data load",
                        "No review, no diff",
                        "Drift is invisible"]),
@@ -383,7 +390,7 @@ kicker(s, y+0.3, "So we keep our own log. It answers: when did this drift start?
 
 # ---------------------------------------------------------------- 16 findings
 s = blank()
-y = title(s, "Eleven findings. Three came from deliberate sabotage.")
+y = title(s, "Twelve findings. Four came from deliberate sabotage.")
 y = table(s, M, y+0.2, CW,
     [["", "Finding"],
      ["F5", "Drift is detected and reported at column level — the verdict"],

@@ -5,8 +5,9 @@ Nothing here touches the `DEVELOP` database, the Matillion project, or any pipel
 
 ## The problem it is testing
 
-Schema DDL for the governance estate currently lives **inside ETL orchestration** — 64
-`CREATE TABLE IF NOT EXISTS` statements spread across 9 pipeline files in `PowerBI Governance/`.
+Schema DDL for the governance estate currently lives **inside ETL orchestration** — **70**
+`CREATE TABLE IF NOT EXISTS` statements spread across **8** pipeline files in `PowerBI Governance/`
+(71 across 9 if you count `97_DEPLOY_MONITOR_TASK.sql`, which is a deploy script rather than a pipeline).
 
 `IF NOT EXISTS` is a **no-op against a table that already exists**. So the repo can stand up
 an empty environment, but it cannot tell you whether an existing environment still matches it.
@@ -47,7 +48,7 @@ and treating the third as the first will produce tables with wrong types.
 | Rank | Source | What it gives | Trust |
 |---|---|---|---|
 | **1** | **`GET_DDL` against `DEVELOP`** | Types, nullability, keys, defaults | **Authoritative — this *is* the target state.** |
-| 2 | The 64 `CREATE TABLE IF NOT EXISTS` in `../PowerBI Governance/*.orch.yaml` | Full DDL, but only where a pipeline creates the table | Nine `PRE` tables were verified against `GET_DDL` on 2026-08-21. The `LND` ones were hand-written; for the **capacities slice they were diffed on 2026-08-22 and match exactly** (`FINDINGS.md` F1). The other `LND` tables still have not been. |
+| 2 | The 70 `CREATE TABLE IF NOT EXISTS` in `../PowerBI Governance/*.orch.yaml` | Full DDL, but only where a pipeline creates the table | Nine `PRE` tables were verified against `GET_DDL` on 2026-08-21. The `LND` ones were hand-written; for the **capacities slice they were diffed on 2026-08-22 and match exactly** (`FINDINGS.md` F1). The other `LND` tables still have not been. |
 | 3 | [`../docs/matillion/SNOWFLAKE_TABLE_INVENTORY.md`](../docs/matillion/SNOWFLAKE_TABLE_INVENTORY.md) | All 52 tables — purpose, grain, key columns, load pattern, gotchas | **The map, not the blueprint.** Column *names* only. Only 3 of 52 entries carry a `CREATE TABLE`. |
 
 **Read the inventory to understand the estate. Take the DDL from `GET_DDL`.**

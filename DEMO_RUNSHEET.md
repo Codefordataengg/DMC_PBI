@@ -163,7 +163,7 @@ DROP DATABASE DEMO_SCRATCH;
 > And no data was harmed — nothing dropped, nothing recreated. That's exactly why it stays
 > invisible. Nothing breaks. There is nothing to notice.
 >
-> Now multiply that by **64 such statements across 9 pipeline files**."
+> Now multiply that by **70 such statements across 8 pipeline files**."
 
 **If someone asks "so does it recreate the table every run?"** — no. First run creates it; every
 run after is a no-op. It exists so the pipeline works against an empty environment.

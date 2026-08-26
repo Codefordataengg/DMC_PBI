@@ -22,7 +22,7 @@ uppercase identifier and an unquoted one resolve to the same name. These are not
 hand-written and had **never been diffed against the live database**. For the three capacities `LND`
 tables, it now has been, and it is correct.
 
-**What it does not close.** This is 8 of 64 `CREATE TABLE IF NOT EXISTS` statements, checked by hand,
+**What it does not close.** This is 8 of 70 `CREATE TABLE IF NOT EXISTS` statements, checked by hand,
 at one point in time, by reading two files side by side. Nothing re-checks it tomorrow. The absence of
 drift today is not evidence that drift cannot occur — it is one clean sample, and the clean sample is
 exactly what makes the slice a good POC subject: **any drift the POC reports from here is drift the POC
@@ -465,3 +465,53 @@ Corrected in `docs/build_deck.py`, `DEMO_RUNSHEET.md` §1 and `docs/PPT_PROMPT.m
 **The lesson is the same one as F8 and F9:** a claim repeated across three documents for a week
 was never tested, because it was about something everyone already "knew". The two-minute check
 was available the whole time.
+
+---
+
+## F13 — The "64 statements" figure was stale, and slide 3 conflated two failures (2026-08-26, verified)
+
+**A full audit of every factual claim in the deck**, prompted by a challenge to slide 3.
+
+### The count was wrong
+
+Every document quoted **64 `CREATE TABLE IF NOT EXISTS` across 9 pipeline files**. Recounted:
+
+```
+grep -roh "CREATE TABLE IF NOT EXISTS" PowerBI Governance/ | wc -l     →  71
+grep -roh ... --include="*.orch.yaml"                                  →  70  across  8 files
+```
+
+| | |
+|---|---|
+| **70** | in `*.orch.yaml` — the orchestration pipelines |
+| **+1** | in `97_DEPLOY_MONITOR_TASK.sql`, a deploy script rather than a pipeline |
+| **71** | total, across 9 files |
+
+The figure has been quoted as 64 since the project began. It grew when DDL for the nine `PRE`
+tables was added on 2026-08-21 — a change we made ourselves and never re-counted.
+**Corrected to 70 across 8 pipeline files** in `CLAUDE.md`, the README, the architecture doc,
+the run sheet, the PPT prompt and the deck.
+
+### Slide 3 conflated two different defects
+
+The slide used the seven-month dashboard freeze as evidence for the `IF NOT EXISTS` problem.
+They are not the same mechanism:
+
+| | Cause |
+|---|---|
+| **Dashboard freeze** | a **trailing comma** in `02F_STG_DIM_PBI_DASHBOARDS`, a hard syntax error, hidden by **alert-then-succeed** |
+| **`IF NOT EXISTS`** | a statement that correctly does nothing, where *did nothing* is indistinguishable from *verified nothing* |
+
+Same *family* — something that looked like a check and never checked — but different
+mechanisms. Presenting one as evidence for the other is an argument a knowledgeable audience
+can dismantle, on a point that was never necessary. The slide now states the distinction
+explicitly.
+
+### "This repo" was ambiguous
+
+The word had been used in this project for both the **Matillion pipeline repo** (which holds
+the 70 statements) and the **DCM repo** (`DMC_PBI`). Slide 3 now names which one it means.
+
+**The pattern, again.** Three claims — the `IF NOT EXISTS` message (F12), the statement count,
+and the dashboard attribution — survived across four documents because each was about something
+already believed. None had been checked. All three were a two-minute verification away.
