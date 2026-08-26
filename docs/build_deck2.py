@@ -246,23 +246,23 @@ foot(s,"project structure",6)
 s=slide(); kicker(s,"architecture")
 title(s,[("How it fits together",INK)])
 ay=2.7
-node(s,Mx,ay,2.0,0.95,"GitHub","authoritative",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC))
-node(s,Mx+2.9,ay,2.3,0.95,"GIT REPOSITORY","account-level clone")
-node(s,Mx+6.1,ay,2.1,0.95,"DCM PROJECT","history · artifacts")
-node(s,Mx+9.1,ay,2.1,0.95,"Database","LND · STG · PRE",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC))
-arrow(s,Mx+2.0,ay+0.47,Mx+2.88,ay+0.47); txt(s,Mx+2.0,ay+0.05,0.9,0.3,[[("FETCH",9,MUTE,False,MONO)]],align=PP_ALIGN.CENTER)
-arrow(s,Mx+5.2,ay+0.47,Mx+6.08,ay+0.47)
-arrow(s,Mx+8.2,ay+0.3,Mx+9.08,ay+0.3); txt(s,Mx+8.0,ay-0.12,1.4,0.3,[[("DEPLOY · writes",8.5,MUTE,False,MONO)]],align=PP_ALIGN.CENTER)
-arrow(s,Mx+8.2,ay+0.66,Mx+9.08,ay+0.66,color=AMBER,dash=True); txt(s,Mx+7.7,ay+0.75,2.0,0.3,[[("PLAN · reads only",8.5,AMBER,False,MONO)]],align=PP_ALIGN.CENTER)
-# nightly loop
-ly=ay+2.0
-node(s,Mx+6.1,ly,2.1,0.9,"Nightly task","05:00 · PLAN only",fill=AMBSOFT,line=AMBLINE,tc=AMBD,t2c=AMBD)
-node(s,Mx+8.6,ly,1.9,0.9,"Drift log","durable record")
-node(s,Mx+10.9,ly,1.35,0.9,"Alert","on drift",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC))
-arrow(s,Mx+7.15,ay+0.95,Mx+7.15,ly-0.02); txt(s,Mx+7.3,ly-0.75,1.8,0.3,[[("FETCH → PLAN",9,MUTE,False,MONO)]])
-arrow(s,Mx+8.2,ly+0.45,Mx+8.58,ly+0.45)
-arrow(s,Mx+10.5,ly+0.45,Mx+10.88,ly+0.45,color=AMBER)
-txt(s,Mx,H-1.5,CW,0.6,[[("PLAN is automated; DEPLOY is not.",13.5,INK,True,SANS),(" The amber path only reads — safe nightly. The solid path writes, and drops columns to do it.",13.5,MUTE,False,SANS)]],leading=1.35)
+node(s,Mx,ay,1.9,0.95,"GitHub","authoritative",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC),s1=13)
+node(s,Mx+2.6,ay,2.15,0.95,"GIT REPOSITORY","account clone",s1=12.5)
+node(s,Mx+5.4,ay,2.0,0.95,"DCM PROJECT","history · artifacts",s1=12.5)
+node(s,Mx+8.15,ay,2.5,0.95,"PROD database","…_PROD · from git",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC),s1=13)
+arrow(s,Mx+1.9,ay+0.47,Mx+2.58,ay+0.47); txt(s,Mx+1.85,ay+0.06,0.9,0.3,[[("FETCH",8.5,MUTE,False,MONO)]],align=PP_ALIGN.CENTER)
+arrow(s,Mx+4.75,ay+0.47,Mx+5.38,ay+0.47)
+arrow(s,Mx+7.4,ay+0.32,Mx+8.13,ay+0.32); txt(s,Mx+7.25,ay-0.1,1.5,0.3,[[("DEPLOY · from git",8,MUTE,False,MONO)]],align=PP_ALIGN.CENTER)
+arrow(s,Mx+7.4,ay+0.64,Mx+8.13,ay+0.64,color=AMBER,dash=True); txt(s,Mx+5.9,ay+0.72,1.9,0.3,[[("PLAN · reads only",8,AMBER,False,MONO)]],align=PP_ALIGN.CENTER)
+# nightly monitor row
+ly=ay+2.05
+node(s,Mx+5.4,ly,2.0,0.9,"Nightly task","05:00 · PLAN only",fill=AMBSOFT,line=AMBLINE,tc=AMBD,t2c=AMBD,s1=12.5)
+node(s,Mx+7.7,ly,1.7,0.9,"Drift log","durable record",s1=12.5)
+node(s,Mx+9.65,ly,1.4,0.9,"Alert","if not CLEAN",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC),s1=12.5)
+arrow(s,Mx+6.4,ay+0.95,Mx+6.4,ly-0.02); txt(s,Mx+6.55,ly-0.72,1.9,0.3,[[("FETCH → PLAN vs git",8.5,MUTE,False,MONO)]])
+arrow(s,Mx+7.4,ly+0.45,Mx+7.68,ly+0.45)
+arrow(s,Mx+9.4,ly+0.45,Mx+9.63,ly+0.45,color=AMBER)
+txt(s,Mx,H-1.55,CW,0.8,[[("Dev deploys from the workspace (next slide); ",13,MUTE,False,SANS),("prod is deployed from git",13,INK,True,SANS),(", and the nightly check watches prod. PLAN is automated; DEPLOY is a human decision — it drops columns to revert.",13,MUTE,False,SANS)]],leading=1.4)
 foot(s,"architecture",7)
 
 # ── 8 THREE COPIES ───────────────────────────────────────
@@ -446,10 +446,11 @@ codebox(s,Mx+6.95,3.05,CW-6.95,[
  [("$ snow dcm test PBI_CAPACITIES",INK2,False)],
  [("",INK2,False)],
  [("  PASS  no_null_ids",CLEAN,True)],
- [("  PASS  unique_ids",CLEAN,True)],
- [("  FAIL  fact_not_empty",AMBER,True)],
+ [("  FAIL  unique_ids",AMBER,True)],
+ [("     Expected VALUE = 0, got 1",MUTE,False)],
+ [("  1 passed, 1 failed",MUTE,False)],
 ],size=12)
-txt(s,Mx+6.95,5.05,CW-6.95,1.3,[[("Runs on ",12.5,MUTE,False,SANS),("deployed",12.5,INK,True,SANS),(" objects, after refresh. The same gate sits on landing, staging and presentation — bad data caught where it enters, not three dashboards later.",12.5,MUTE,False,SANS)]],leading=1.4)
+txt(s,Mx+6.95,5.25,CW-6.95,1.3,[[("A ",12.5,MUTE,False,SANS),("verified run",12.5,INK,True,SANS),(", not a mock-up. Exits non-zero on failure, so it gates a pipeline. The same check sits on landing, staging and presentation — bad data caught where it enters, not three dashboards later.",12.5,MUTE,False,SANS)]],leading=1.4)
 foot(s,"beyond schema",17)
 
 # ── 15 CLOSE ─────────────────────────────────────────────
@@ -495,10 +496,15 @@ def _validate(path="DCM_Presentation.pptx"):
             for b in range(a+1,len(R)):
                 o=it(R[a],R[b]); sm=min(ar(R[a]),ar(R[b]))
                 if sm>0.02 and o/sm>0.30: issues+=1; print(f"  OVERLAP slide {i}: {tb[a].text_frame.text[:20]!r} x {tb[b].text_frame.text[:20]!r}")
+        FR=0.42*EMU
         for sh in s.shapes:
             if sh.left is None: continue
-            if sh.left<-9000 or sh.top<-9000 or sh.left+(sh.width or 0)>SW+9000 or sh.top+(sh.height or 0)>SH+9000:
+            R=sh.left+(sh.width or 0); B=sh.top+(sh.height or 0)
+            if sh.left<-9000 or sh.top<-9000 or R>SW+9000 or B>SH+9000:
                 issues+=1; print(f"  OFF-CANVAS slide {i}")
+            elif sh.left<FR-4000 or sh.top<FR-4000 or R>SW-FR+4000 or B>SH-FR+4000:
+                t=sh.text_frame.text[:18] if sh.has_text_frame else "shape"
+                issues+=1; print(f"  OUT-OF-FRAME slide {i}: {t!r}")
     print("layout check:", "CLEAN" if issues==0 else f"{issues} ISSUES")
     return issues
 

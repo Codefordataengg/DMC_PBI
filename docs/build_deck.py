@@ -253,7 +253,7 @@ node(s,Mx+8.15,ay,2.5,0.95,"PROD database","…_PROD · from git",fill=INK2,tc=W
 arrow(s,Mx+1.9,ay+0.47,Mx+2.58,ay+0.47); txt(s,Mx+1.85,ay+0.06,0.9,0.3,[[("FETCH",8.5,MUTE,False,MONO)]],align=PP_ALIGN.CENTER)
 arrow(s,Mx+4.75,ay+0.47,Mx+5.38,ay+0.47)
 arrow(s,Mx+7.4,ay+0.32,Mx+8.13,ay+0.32); txt(s,Mx+7.25,ay-0.1,1.5,0.3,[[("DEPLOY · from git",8,MUTE,False,MONO)]],align=PP_ALIGN.CENTER)
-arrow(s,Mx+7.4,ay+0.64,Mx+8.13,ay+0.64,color=AMBER,dash=True); txt(s,Mx+7.05,ay+0.72,2.0,0.3,[[("PLAN · reads only",8,AMBER,False,MONO)]],align=PP_ALIGN.CENTER)
+arrow(s,Mx+7.4,ay+0.64,Mx+8.13,ay+0.64,color=AMBER,dash=True); txt(s,Mx+5.9,ay+0.72,1.9,0.3,[[("PLAN · reads only",8,AMBER,False,MONO)]],align=PP_ALIGN.CENTER)
 # nightly monitor row
 ly=ay+2.05
 node(s,Mx+5.4,ly,2.0,0.9,"Nightly task","05:00 · PLAN only",fill=AMBSOFT,line=AMBLINE,tc=AMBD,t2c=AMBD,s1=12.5)
