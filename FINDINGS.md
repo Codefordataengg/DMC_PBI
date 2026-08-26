@@ -616,3 +616,41 @@ table (`CTL_DCM_DRIFT_LOG`) remains mandatory, exactly as designed.
 **Demo consequence:** the expectations slides are now backed by a real run, not a description. If
 asked "does this actually work / do we need Enterprise?", the answer is yes / no respectively, shown
 live in ~30 seconds with `ADD DATA METRIC FUNCTION … EXPECTATION` + `snow dcm test`.
+
+---
+
+## F16 — One DCM project object holds ONE environment; dev+prod need SEPARATE projects (2026-08-27, verified)
+
+**Found in rehearsal, and it changes the dev/prod manifest.** The simplified demo manifest used a
+single `project_name` for both the DEV and PROD configurations. Deploying DEV (from the workspace)
+then PROD (`USING CONFIGURATION PROD`) against that **same** project object **dropped the entire DEV
+database** and created PROD — because a DCM project object tracks exactly one desired state, and
+switching the config changed every object's rendered name (`_DEV`→`_PROD`), so DEV read as
+"no longer declared."
+
+Observed changeset (DEPLOY, PROD config): `DROP DATABASE DEMO_PBI_DEV` (+ schemas/tables) then
+`CREATE DATABASE DEMO_PBI_PROD`. `DEMO_PBI_DEV` was gone afterwards.
+
+**This is Snowflake's intended model** — the scaffold's own manifest names the project
+`DEMO_PROJECT_DEV`, i.e. **one project object per environment**. Fix: a project per target.
+
+```yaml
+targets:
+  DCM_DEV:
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_DEV
+    templating_config: DEV
+  DCM_PROD:
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_PROD
+    templating_config: PROD
+templating:
+  configurations:
+    DEV:  { env_suffix: "_DEV" }
+    PROD: { env_suffix: "_PROD" }
+```
+
+**Verified 2026-08-27:** two project objects (`TWOENV_DEV`/`TWOENV_PROD`), deploy DEV to one and
+PROD to the other → `TWOENV_PBI_DEV` and `TWOENV_PBI_PROD` **coexist**, neither drops the other.
+
+**Consequence for the demo:** the workspace (default target `DCM_DEV`) deploys to the `_DEV`
+project; the git-sourced prod deploy targets the `_PROD` project object explicitly. The nightly
+drift check watches the `_PROD` project. Runsheet, deck slide 6 and the promotion story updated.

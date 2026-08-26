@@ -235,9 +235,14 @@ default_target: DCM_DEV                   # which target runs when you don't say
 targets:
   DCM_DEV:
     account_identifier: YVTSYHL-PP80681
-    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES   # ← CHANGE
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_DEV    # ← _DEV project
     project_owner: ACCOUNTADMIN
     templating_config: DEV
+  DCM_PROD:                                                # ← ADD this target
+    account_identifier: YVTSYHL-PP80681
+    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_PROD   # ← _PROD project
+    project_owner: ACCOUNTADMIN
+    templating_config: PROD
 
 templating:
   defaults:
@@ -252,6 +257,12 @@ templating:
 
 `default_target: DCM_DEV` means the workspace deploys with the **DEV** configuration, so its
 Deploy button builds `DEMO_PBI_DEV`. Prod comes later, from git, with `USING CONFIGURATION PROD`.
+
+> **One project object per environment — this is not optional (F16).** A DCM project holds ONE
+> desired state. If dev and prod share a project object, deploying prod **drops the whole dev
+> database** (its objects read as "no longer declared"). So each target names its own project:
+> `…DEMO_CAPACITIES_DEV` and `…DEMO_CAPACITIES_PROD`. The workspace uses the `_DEV` one; the
+> git-sourced prod deploy targets the `_PROD` one.
 
 > **Say, pointing at each block:** "`targets` is *where* — which account, which project object.
 > `templating` is *what varies* — the values that differ between environments. And
@@ -424,10 +435,10 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 ### Now the point of the whole demo — deploy PROD from git
 
 ```sql
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_PROD
     DEPLOY AS "prod_release"
     USING CONFIGURATION PROD
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/DCM_DEMO/';
 
 SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
 FROM   DEMO_PBI_PROD.INFORMATION_SCHEMA.COLUMNS
