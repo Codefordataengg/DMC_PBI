@@ -166,7 +166,7 @@
         and what it cost.</p>
       <p class="meta"><b>8</b> tables &nbsp;·&nbsp; <b>53</b> columns &nbsp;·&nbsp; <b>13</b> findings &nbsp;·&nbsp; personal Snowflake account · Aug 2026</p>
     </div>
-    <div class="foot"><span class="mono">SCHEMA DRIFT, CAUGHT</span><span class="num mono"><b>01</b> / 15</span></div>
+    <div class="foot"><span class="mono">SCHEMA DRIFT, CAUGHT</span><span class="num mono"><b>01</b> / 17</span></div>
   </section>
 
   <!-- 2 ── THE PROBLEM ──────────────────────────────────────── -->
@@ -204,7 +204,7 @@
           and nothing ever compares the table to what was declared. It stays invisible because it is harmless.</figcaption>
       </figure>
     </div>
-    <div class="foot"><span class="mono">THE PROBLEM</span><span class="num mono"><b>02</b> / 15</span></div>
+    <div class="foot"><span class="mono">THE PROBLEM</span><span class="num mono"><b>02</b> / 17</span></div>
   </section>
 
   <!-- 3 ── TWO GUARANTEES ───────────────────────────────────── -->
@@ -224,7 +224,7 @@
         Related, and why we went looking: a dashboard dimension sat frozen for <strong>seven months</strong>. A different defect —
         a trailing comma an alert-then-succeed pattern hid — but the <span class="amber">same shape</span>: something that looked like a check and never checked.</p>
     </div>
-    <div class="foot"><span class="mono">TWO GUARANTEES</span><span class="num mono"><b>03</b> / 15</span></div>
+    <div class="foot"><span class="mono">TWO GUARANTEES</span><span class="num mono"><b>03</b> / 17</span></div>
   </section>
 
   <!-- 4 ── WHAT DCM IS ──────────────────────────────────────── -->
@@ -253,7 +253,7 @@
 <span class="am">-- deploy drops the table.</span></pre>
       </div>
     </div>
-    <div class="foot"><span class="mono">WHAT DCM IS</span><span class="num mono"><b>04</b> / 15</span></div>
+    <div class="foot"><span class="mono">WHAT DCM IS</span><span class="num mono"><b>04</b> / 17</span></div>
   </section>
 
   <!-- 5 ── BEFORE / AFTER ───────────────────────────────────── -->
@@ -283,7 +283,7 @@
       </div>
       <p class="lede" style="max-width:none">The database becomes a <span class="amber">build output</span> — not a place things quietly accumulate.</p>
     </div>
-    <div class="foot"><span class="mono">INFRASTRUCTURE AS CODE</span><span class="num mono"><b>05</b> / 15</span></div>
+    <div class="foot"><span class="mono">INFRASTRUCTURE AS CODE</span><span class="num mono"><b>05</b> / 17</span></div>
   </section>
 
   <!-- 6 ── FOLDER + MANIFEST ────────────────────────────────── -->
@@ -313,7 +313,7 @@ templating:
         <p class="sub" style="margin-top:1rem">Promotion is pointing at a different target. <strong>You copy nothing.</strong></p>
       </div>
     </div>
-    <div class="foot"><span class="mono">PROJECT STRUCTURE</span><span class="num mono"><b>06</b> / 15</span></div>
+    <div class="foot"><span class="mono">PROJECT STRUCTURE</span><span class="num mono"><b>06</b> / 17</span></div>
   </section>
 
   <!-- 7 ── ARCHITECTURE (hero) ──────────────────────────────── -->
@@ -379,7 +379,7 @@ templating:
           The solid path writes, and drops columns to do it, so a person runs it after reading a plan.</figcaption>
       </figure>
     </div>
-    <div class="foot"><span class="mono">ARCHITECTURE</span><span class="num mono"><b>07</b> / 15</span></div>
+    <div class="foot"><span class="mono">ARCHITECTURE</span><span class="num mono"><b>07</b> / 17</span></div>
   </section>
 
   <!-- 8 ── THREE COPIES ─────────────────────────────────────── -->
@@ -422,7 +422,7 @@ templating:
         <p class="sub"><strong>GitHub is authoritative. The other two are caches.</strong></p>
       </div>
     </div>
-    <div class="foot"><span class="mono">THREE COPIES</span><span class="num mono"><b>08</b> / 15</span></div>
+    <div class="foot"><span class="mono">THREE COPIES</span><span class="num mono"><b>08</b> / 17</span></div>
   </section>
 
   <!-- 9 ── ONE DIRECTION ────────────────────────────────────── -->
@@ -464,7 +464,7 @@ templating:
         <figcaption>A hand-made <code>ALTER</code> never flows back into the repo. That asymmetry is exactly why the third question below has to be asked at all.</figcaption>
       </figure>
     </div>
-    <div class="foot"><span class="mono">ONE DIRECTION</span><span class="num mono"><b>09</b> / 15</span></div>
+    <div class="foot"><span class="mono">ONE DIRECTION</span><span class="num mono"><b>09</b> / 17</span></div>
   </section>
 
   <!-- 10 ── THREE DIFFS (spine) ─────────────────────────────── -->
@@ -491,7 +491,7 @@ templating:
       </div>
       <p class="lede" style="max-width:none">The third is the one we have <span class="amber">never been able to see.</span></p>
     </div>
-    <div class="foot"><span class="mono">THREE DIFFS</span><span class="num mono"><b>10</b> / 15</span></div>
+    <div class="foot"><span class="mono">THREE DIFFS</span><span class="num mono"><b>10</b> / 17</span></div>
   </section>
 
   <!-- 11 ── VERDICTS ────────────────────────────────────────── -->
@@ -542,7 +542,7 @@ templating:
         </div>
       </div>
     </div>
-    <div class="foot"><span class="mono">VERDICTS</span><span class="num mono"><b>11</b> / 15</span></div>
+    <div class="foot"><span class="mono">VERDICTS</span><span class="num mono"><b>11</b> / 17</span></div>
   </section>
 
   <!-- 12 ── WHAT DRIFT RETURNS + AUDIT ──────────────────────── -->
@@ -567,7 +567,7 @@ templating:
         <p class="sub"><strong>The drift check is the one thing Snowflake doesn't record.</strong> Deployments keep 12-month artifacts; plans keep nothing, with no <code>ACCOUNT_USAGE</code> view — so we keep our own log. It answers <em>when did this drift start?</em></p>
       </div>
     </div>
-    <div class="foot"><span class="mono">THE RECORD</span><span class="num mono"><b>12</b> / 15</span></div>
+    <div class="foot"><span class="mono">THE RECORD</span><span class="num mono"><b>12</b> / 17</span></div>
   </section>
 
   <!-- 13 ── FINDINGS ────────────────────────────────────────── -->
@@ -586,7 +586,7 @@ templating:
       </table>
       <p class="lede" style="max-width:none">Every failure we found was something <span class="amber">reporting success without checking</span> what it claimed to check.</p>
     </div>
-    <div class="foot"><span class="mono">FINDINGS</span><span class="num mono"><b>13</b> / 15</span></div>
+    <div class="foot"><span class="mono">FINDINGS</span><span class="num mono"><b>13</b> / 17</span></div>
   </section>
 
   <!-- 14 ── DEMO ────────────────────────────────────────────── -->
@@ -605,7 +605,73 @@ templating:
         <div></div>
       </div>
     </div>
-    <div class="foot"><span class="mono">THE DEMO</span><span class="num mono"><b>14</b> / 15</span></div>
+    <div class="foot"><span class="mono">THE DEMO</span><span class="num mono"><b>14</b> / 17</span></div>
+  </section>
+
+  <!-- 15 ── BEYOND SCHEMA: CONCEPT ─────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">beyond schema · what's next</p>
+    <div class="reveal row" style="gap:clamp(1.5rem,4vw,4rem);align-items:center">
+      <div class="stack grow" style="max-width:34ch">
+        <h2>Gate the <span class="amber">data</span>,<br>not just the shape</h2>
+        <p class="sub">This POC proved the database <em>matches</em> the repo. The same declarative project can prove the data <em>passes</em> — quality checks declared right beside the schema.</p>
+        <p class="sub"><code>ATTACH</code> a data metric function with an <code>EXPECTATION</code>, then run <code>snow dcm test</code>. A <strong>GA capability we never used</strong> — and the highest-value next step for a governance estate.</p>
+      </div>
+      <figure class="grow">
+        <svg viewBox="0 0 460 300" role="img" aria-label="Two guarantees converge on the same table: a structure check (PLAN, does it match the repo) and a data-quality check (snow dcm test, does the data pass).">
+          <defs><marker id="a6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6C7B88"/></marker>
+          <marker id="a6am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#B26B12"/></marker></defs>
+          <g font-family="ui-monospace,monospace">
+            <rect x="270" y="110" width="170" height="82" fill="#36454F"/>
+            <text x="355" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">the table</text>
+            <text x="355" y="167" text-anchor="middle" font-size="10.5" fill="#B9C4CC">PRE.DIM_PBI_…</text>
+
+            <rect x="14" y="42" width="200" height="72" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="114" y="72" text-anchor="middle" font-size="12.5" font-weight="700" fill="#25313A">does it MATCH?</text>
+            <text x="114" y="93" text-anchor="middle" font-size="10.5" fill="#6C7B88">PLAN · structure</text>
+
+            <rect x="14" y="188" width="200" height="72" fill="#F6E9D6" stroke="#E3B173"/>
+            <text x="114" y="218" text-anchor="middle" font-size="12.5" font-weight="700" fill="#8A5210">does the data PASS?</text>
+            <text x="114" y="239" text-anchor="middle" font-size="10.5" fill="#8A5210">snow dcm test · expectations</text>
+
+            <path d="M214 78 C 250 90, 250 120, 268 130" fill="none" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a6)"/>
+            <path d="M214 224 C 250 210, 250 180, 268 172" fill="none" stroke="#B26B12" stroke-width="1.5" marker-end="url(#a6am)"/>
+            <text x="150" y="150" font-size="10.5" fill="#9AA8B3">this POC</text>
+            <text x="150" y="162" font-size="10.5" fill="#B26B12">not yet used</text>
+          </g>
+        </svg>
+      </figure>
+    </div>
+    <div class="foot"><span class="mono">BEYOND SCHEMA</span><span class="num mono"><b>15</b> / 17</span></div>
+  </section>
+
+  <!-- 16 ── BEYOND SCHEMA: EXAMPLES ──────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">beyond schema · examples</p>
+    <div class="reveal row" style="gap:clamp(1.5rem,4vw,4rem);align-items:stretch">
+      <div class="grow stack" style="justify-content:center">
+        <h2 style="margin-bottom:.5rem">Declared beside the schema</h2>
+        <pre style="font-size:clamp(.66rem,.98vw,.86rem)"><span class="dim">-- in the same sources/definitions file</span>
+<b>ATTACH DATA METRIC FUNCTION</b> SNOWFLAKE.CORE.NULL_COUNT
+  <b>TO TABLE</b> DEVELOP.PRE.DIM_PBI_CAPACITIES <b>ON</b> (ID)
+  <b>EXPECTATION</b> no_null_ids ( <span class="am">VALUE = 0</span> );
+
+<b>ATTACH DATA METRIC FUNCTION</b> SNOWFLAKE.CORE.DUPLICATE_COUNT
+  <b>TO TABLE</b> DEVELOP.PRE.DIM_PBI_CAPACITIES <b>ON</b> (ID)
+  <b>EXPECTATION</b> unique_ids ( <span class="am">VALUE = 0</span> );</pre>
+        <p class="sub" style="font-size:clamp(.85rem,1.3vw,1.05rem)">The left side is always the keyword <code>VALUE</code>. No subqueries, no casts, no arithmetic — a check, not a query.</p>
+      </div>
+      <div class="grow stack" style="justify-content:center;max-width:34ch">
+        <p class="tag" style="margin-bottom:.4rem">one command runs them all</p>
+        <pre>$ snow dcm test PBI_CAPACITIES
+
+  <span style="color:#4B6650;font-weight:700">PASS</span>  no_null_ids
+  <span style="color:#4B6650;font-weight:700">PASS</span>  unique_ids
+  <span class="am">FAIL  fact_not_empty  (VALUE 0)</span></pre>
+        <p class="sub">Applies to <strong>deployed</strong> objects, after tasks and dynamic tables have refreshed. The same pass/fail gate can sit on landing, staging and presentation — so bad data is caught where it enters, not three dashboards later.</p>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">BEYOND SCHEMA</span><span class="num mono"><b>16</b> / 17</span></div>
   </section>
 
   <!-- 15 ── CLOSE / LIMITS ──────────────────────────────────── -->
@@ -628,7 +694,7 @@ templating:
         <p class="sub" style="margin-top:1rem;color:var(--faint)">Scheduled <code>PLAN</code> first — it's read-only. <code>DEPLOY</code> stays a human decision.</p>
       </div>
     </div>
-    <div class="foot"><span class="mono">SCHEMA DRIFT, CAUGHT</span><span class="num mono"><b>15</b> / 15</span></div>
+    <div class="foot"><span class="mono">SCHEMA DRIFT, CAUGHT</span><span class="num mono"><b>17</b> / 17</span></div>
   </section>
 
 </div>

@@ -69,7 +69,7 @@ def kicker(s,text,dark=False):
 def foot(s,label,n,dark=False):
     c=RGBColor(0x7C,0x8B,0x95) if dark else FAINT
     txt(s,Mx,H-0.86,5,0.3,[[(label.upper(),9.5,c,False,MONO)]])
-    txt(s,W-Mx-2.4,H-0.86,2.4,0.3,[[(f"{n:02d}",9.5,(RGBColor(0xC4,0xCE,0xD5) if dark else INK2),True,MONO),(f" / 15",9.5,c,False,MONO)]],align=PP_ALIGN.RIGHT)
+    txt(s,W-Mx-2.4,H-0.86,2.4,0.3,[[(f"{n:02d}",9.5,(RGBColor(0xC4,0xCE,0xD5) if dark else INK2),True,MONO),(f" / 17",9.5,c,False,MONO)]],align=PP_ALIGN.RIGHT)
 
 def title(s,parts,y=1.5,size=33,x=None,w=None):
     # parts: list of (text,color) segments on possibly one line
@@ -398,6 +398,47 @@ for i,(nn,desc,hot) in enumerate(items):
     txt(s,x+0.7,yy,colw-0.8,0.7,[[(desc,13,(INK2 if hot else MUTE),(True if hot else False),SANS)]],leading=1.25)
 foot(s,"the demo",14)
 
+# ── 15 BEYOND SCHEMA: CONCEPT ────────────────────────────
+s=slide(); kicker(s,"beyond schema · what's next")
+node(s,Mx,3.0,2.7,0.85,"does it MATCH?","PLAN · structure",s1=12.5,s2=10)
+node(s,Mx,4.7,2.7,0.85,"does the data PASS?","snow dcm test",fill=AMBSOFT,line=AMBLINE,tc=AMBD,t2c=AMBD,s1=12.5,s2=10)
+node(s,Mx+4.3,3.85,2.4,0.95,"the table","PRE.DIM_PBI_…",fill=INK2,tc=WHITE,t2c=RGBColor(0xB9,0xC4,0xCC))
+arrow(s,Mx+2.7,3.42,Mx+4.28,4.05)
+arrow(s,Mx+2.7,5.12,Mx+4.28,4.55,color=AMBER)
+txt(s,Mx+2.9,3.95,1.5,0.3,[[("this POC",9.5,FAINT,False,MONO)]])
+txt(s,Mx+2.9,4.62,1.7,0.3,[[("not yet used",9.5,AMBER,False,MONO)]])
+tx=Mx+7.2
+title(s,[("Gate the ",INK),("data",AMBER),(",",INK)],y=2.7,size=28,x=tx,w=CW-7.2)
+title(s,[("not just the shape",INK)],y=3.45,size=28,x=tx,w=CW-7.2)
+txt(s,tx,4.4,CW-7.2,1.1,[[("This POC proved the database matches the repo. The same declarative project can prove the data passes — quality checks declared beside the schema.",13.5,MUTE,False,SANS)]],leading=1.4)
+txt(s,tx,5.75,CW-7.2,1.0,[[("ATTACH a data metric function with an EXPECTATION, then ",13.5,MUTE,False,SANS),("snow dcm test",11.5,INK2,False,MONO),(". A GA capability we never used.",13.5,INK,True,SANS)]],leading=1.4)
+foot(s,"beyond schema",15)
+
+# ── 16 BEYOND SCHEMA: EXAMPLES ───────────────────────────
+s=slide(); kicker(s,"beyond schema · examples")
+title(s,[("Quality gates, declared beside the schema",INK)])
+codebox(s,Mx,2.75,6.5,[
+ [("-- in the same sources/definitions file",MUTE,False)],
+ [("ATTACH DATA METRIC FUNCTION",INK,True),(" SNOWFLAKE.CORE.NULL_COUNT",INK2,False)],
+ [("  TO TABLE",INK,True),(" DEVELOP.PRE.DIM_PBI_CAPACITIES ",INK2,False),("ON",INK,True),(" (ID)",INK2,False)],
+ [("  EXPECTATION",INK,True),(" no_null_ids ( ",INK2,False),("VALUE = 0",AMBER,True),(" );",INK2,False)],
+ [("",INK2,False)],
+ [("ATTACH DATA METRIC FUNCTION",INK,True),(" SNOWFLAKE.CORE.DUPLICATE_COUNT",INK2,False)],
+ [("  TO TABLE",INK,True),(" DEVELOP.PRE.DIM_PBI_CAPACITIES ",INK2,False),("ON",INK,True),(" (ID)",INK2,False)],
+ [("  EXPECTATION",INK,True),(" unique_ids ( ",INK2,False),("VALUE = 0",AMBER,True),(" );",INK2,False)],
+],size=11)
+txt(s,Mx,5.15,6.5,0.7,[[("The left side is always the keyword ",12.5,MUTE,False,SANS),("VALUE",11,INK2,False,MONO),(". No subqueries, casts or arithmetic — a check, not a query.",12.5,MUTE,False,SANS)]],leading=1.35)
+txt(s,Mx+6.95,2.7,CW-6.95,0.3,[[("ONE COMMAND RUNS THEM ALL",10.5,FAINT,True,MONO)]])
+codebox(s,Mx+6.95,3.05,CW-6.95,[
+ [("$ snow dcm test PBI_CAPACITIES",INK2,False)],
+ [("",INK2,False)],
+ [("  PASS  no_null_ids",CLEAN,True)],
+ [("  PASS  unique_ids",CLEAN,True)],
+ [("  FAIL  fact_not_empty",AMBER,True)],
+],size=12)
+txt(s,Mx+6.95,5.05,CW-6.95,1.3,[[("Runs on ",12.5,MUTE,False,SANS),("deployed",12.5,INK,True,SANS),(" objects, after refresh. The same gate sits on landing, staging and presentation — bad data caught where it enters, not three dashboards later.",12.5,MUTE,False,SANS)]],leading=1.4)
+foot(s,"beyond schema",16)
+
 # ── 15 CLOSE ─────────────────────────────────────────────
 s=slide(); kicker(s,"honest limits")
 title(s,[("What it does",INK)],y=1.6,size=30); title(s,[("not yet prove",INK)],y=2.35,size=30)
@@ -413,10 +454,10 @@ txt(s,Mx+6.8,3.5,CW-6.8,2.0,[
  [("and name the column when it doesn't.",18,INK2,False,SANS)],
 ],leading=1.3,sp=10)
 txt(s,Mx+6.8,5.7,CW-6.8,0.6,[[("Scheduled PLAN first — it's read-only. DEPLOY stays a human decision.",12.5,FAINT,False,SANS)]],leading=1.3)
-foot(s,"schema drift, caught",15)
+foot(s,"schema drift, caught",17)
 
 prs.save("DCM_Presentation.pptx")
-print("saved 15 slides")
+print("saved", len(prs.slides._sldIdLst), "slides")
 
 # ── layout self-check (run after save) ───────────────────────────────
 def _validate(path="DCM_Presentation.pptx"):
