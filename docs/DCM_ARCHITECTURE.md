@@ -226,37 +226,43 @@ Each row is a way the monitor could quietly stop being a monitor.
 
 ---
 
-## 7. Deployment flow, once git is wired
+## 7. Deployment flow — dev fast, prod from git
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Dev as Engineer
-    participant Git as GitHub
-    participant SF as Snowflake
-    participant DB as DEVELOP
+    participant WS as Workspace
+    participant Git as GitHub (main)
+    participant Repo as GIT REPOSITORY
+    participant DB as Databases
 
-    Dev->>Git: push change to a .sql definition
-    Dev->>Git: open PR
-    Git->>SF: CI runs snow dcm plan
-    SF-->>Git: changeset posted as PR comment
-    Note over Git: reviewer sees exactly<br/>what will change
-    Dev->>Git: merge to main
-    Git->>SF: ALTER GIT REPOSITORY ... FETCH
-    Dev->>SF: EXECUTE DCM PROJECT ... DEPLOY
-    SF->>DB: CREATE OR ALTER
-    Note over SF,DB: deploy is gated on a<br/>human reading the plan
+    Dev->>WS: edit definitions
+    WS->>DB: Deploy · DEV config → *_DEV
+    Note over WS,DB: dev is fast, from the workspace,<br/>no review gate
+    Dev->>Git: commit → PR → merge main
+    Git->>Repo: ALTER … FETCH
+    Dev->>Repo: EXECUTE … DEPLOY USING CONFIGURATION PROD
+    Repo->>DB: → *_PROD
+    Note over Repo,DB: prod is deployed FROM git,<br/>never from the workspace
 
-    loop every night 05:00 UTC
-        SF->>DB: PLAN (read only)
-        SF->>SF: write CTL_DCM_DRIFT_LOG
-        alt drift or error
-            SF-->>Dev: 📧 alert
-        end
+    loop nightly 05:00 UTC
+        Repo->>DB: PLAN (read only, per config)
+        Repo-->>Dev: 📧 alert on drift or error
     end
 ```
 
----
+**The rule the diagram encodes.** Dev is deployed from the workspace; **prod is only ever a
+deploy from the reviewed `main`**, via `USING CONFIGURATION PROD`. Same definition files build
+both environments — `env_suffix` (`_DEV` / `_PROD`) is the only difference, so there is never a
+second copy of the DDL to drift.
+
+**Why the order is load-bearing.** If prod were deployed from the workspace and pushed to git
+afterwards, git would lag prod — and the nightly drift check, which reads git, would flag prod as
+drifted for a change made deliberately. Deploying prod *from* git makes git and prod agree by
+construction, which is what keeps the drift signal honest. Same account for the demo (two
+databases via `env_suffix`); real estates often split dev and prod across separate accounts, a
+target per account.
 
 ## 8. Files
 

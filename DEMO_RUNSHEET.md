@@ -32,22 +32,32 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 ## The sequence, on one screen
 
 ```
-0.  Repo with a README              ← no commits = no main branch = nothing to connect to
-1.  Workspaces → From Git repository   ← git connection happens HERE or never
-2.  + Add new → DCM Project            ← scaffold inside that workspace
-3.  Author definitions — HOLD ONE PRE TABLE BACK
-4.  Plan → Create → Deploy → verify     § 2
-5.  Changes → commit → Push             § 3   GitHub fills up
-6.  CREATE GIT REPOSITORY + FETCH       § 4   the account's own copy
-7.  Plan from the git path → NO CHANGES  § 4   same truth, two directions
-8.  Add the held-back table             § 5
-9.  Commit → Push → see the diff        § 5-6
-10. FETCH → Plan → one new table → Deploy § 7
-11. Tamper by hand → drift check         § 8   ← the reveal
+0.  Repo with a README                     ← no commits = no main branch, nothing to connect to
+1.  Workspaces → From Git repository        ← git connection happens HERE or never
+2.  + Add new → DCM Project (scaffold)
+3.  Manifest: DEV + PROD configs            § 2   env_suffix _DEV / _PROD
+4.  Author definitions with {{env_suffix}} — HOLD ONE PRE TABLE BACK
+5.  Workspace → Plan → Deploy → DEMO_PBI_DEV § 2   ← dev, fast, from the workspace
+6.  Commit → Push (branch → PR → merge main) § 3   ← git is now the source of truth
+7.  CREATE GIT REPOSITORY + FETCH            § 4   the account's own clone
+8.  Deploy PROD from git → DEMO_PBI_PROD     § 4   ← USING CONFIGURATION PROD, never the workspace
+9.  Change loop: edit → DEV → PR → PROD      § 5-7
+10. Tamper DEMO_PBI_PROD by hand → drift check § 8  ← the reveal
 ```
 
-> **Steps 0 and 1 are the ones that cannot be reordered.** A workspace can only be connected to
-> git *at creation*. Author first and there is no way to push — you start again.
+> **Steps 0 and 1 cannot be reordered.** A workspace can only be connected to git *at creation*.
+> Author first and there is no way to push — you start again.
+
+> **The workflow this demonstrates — dev fast, prod from git.**
+> Dev is deployed straight from the workspace, so you iterate with no ceremony. Prod is deployed
+> *from git* — the same reviewed `main`, via `USING CONFIGURATION PROD` — **never from your
+> personal workspace**. That way prod always has a reviewed, reproducible origin, and the nightly
+> drift check (which reads git) never sees prod diverge for a reason nobody can trace.
+>
+> Same account, two databases — `DEMO_PBI_DEV` and `DEMO_PBI_PROD`, separated by `env_suffix`.
+> No paid upgrade, no second account; just compute credits. *(Real enterprises often use separate
+> accounts for dev and prod — a target per account — but same-account + `env_suffix` is standard
+> for a demo and for single-account teams.)*
 
 ---
 
@@ -66,7 +76,7 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 | 8 | [**Diff three — the reveal**](#8--diff-three--the-reveal) | 5 | ⏩ |
 | 9 | [Put it back](#9--put-it-back) | 2 | ⏩ |
 | 10 | [The one that surprises people](#10--the-one-that-surprises-people) | 4 | |
-| 11 | [One source, two environments](#11--one-source-two-environments) | 4 | |
+| 11 | [The loop, and why prod ships from git](#11--the-loop-and-why-prod-ships-from-git) | 3 | |
 | 12 | [Every morning, unattended](#12--every-morning-unattended) | 4 | |
 | 13 | [Close honestly](#13--close-honestly) | 2 | ⏩ |
 | — | [If something breaks live](#if-something-breaks-live) | — | **read first** |
@@ -95,7 +105,8 @@ and no new integration. Mention that in §2; it is a good detail.
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE COMPUTE_WH;
 
-DROP DATABASE       IF EXISTS DEMO_PBI;
+DROP DATABASE       IF EXISTS DEMO_PBI_DEV;
+DROP DATABASE       IF EXISTS DEMO_PBI_PROD;
 DROP DCM PROJECT    IF EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
 DROP GIT REPOSITORY IF EXISTS DCM_ADMIN.PROJECTS.DEMO_REPO;
 
@@ -234,11 +245,13 @@ templating:
     wh_size: "SMALL"
   configurations:
     DEV:
-      env_suffix: ""                      # ← CHANGE from "_MY_PROJECT_OBJECT"
-      teams:
-        - name: "SAMPLE_TEAM"
-          data_retention_days: 1
+      env_suffix: "_DEV"                  # ← CHANGE from "_MY_PROJECT_OBJECT"
+    PROD:                                 # ← ADD this whole block
+      env_suffix: "_PROD"
 ```
+
+`default_target: DCM_DEV` means the workspace deploys with the **DEV** configuration, so its
+Deploy button builds `DEMO_PBI_DEV`. Prod comes later, from git, with `USING CONFIGURATION PROD`.
 
 > **Say, pointing at each block:** "`targets` is *where* — which account, which project object.
 > `templating` is *what varies* — the values that differ between environments. And
@@ -248,13 +261,12 @@ templating:
 
 | Placeholder | Change to | If you don't |
 |---|---|---|
-| `env_suffix: "_MY_PROJECT_OBJECT"` | `""` | Every object gets that string appended — `DEMO_PBI_MY_PROJECT_OBJECT` |
+| `env_suffix: "_MY_PROJECT_OBJECT"` | `"_DEV"` (and add a `PROD` config with `"_PROD"`) | The suffix is how one file builds two databases — leave the placeholder and objects land as `DEMO_PBI_MY_PROJECT_OBJECT` |
 | `project_owner_role: "MY_ROLE"` | `"ACCOUNTADMIN"` | The grants macro references a role that doesn't exist |
 
-> **Say:** "`env_suffix` is empty for now so the names stay readable. I'll come back to it —
-> it's how one set of files builds both dev and prod."
-
-That forward reference sets up §11. Don't explain it further here.
+> **Say:** "`env_suffix` is the whole promotion story in one line. The DEV config appends `_DEV`,
+> the PROD config appends `_PROD` — so the *same* definition files build two databases. I never
+> maintain two copies of the DDL; I point one reviewed file at a different configuration."
 
 **If `sources/definitions/` is empty** — you deleted the examples, which is right — the Output
 pane reads `Files: 0, Errors: 0`. That is not an error. It has nothing to analyse yet.
@@ -266,13 +278,13 @@ Create `sources/definitions/10_capacities.sql`.
 > a *change* travel through git later, which is the harder and more useful thing to demonstrate.
 
 ```sql
-DEFINE DATABASE DEMO_PBI
+DEFINE DATABASE DEMO_PBI{{env_suffix}}
     COMMENT = 'Power BI governance estate - demo';
 
-DEFINE SCHEMA DEMO_PBI.LND COMMENT = 'Landing - raw API payloads';
-DEFINE SCHEMA DEMO_PBI.PRE COMMENT = 'Presentation - merge targets';
+DEFINE SCHEMA DEMO_PBI{{env_suffix}}.LND COMMENT = 'Landing - raw API payloads';
+DEFINE SCHEMA DEMO_PBI{{env_suffix}}.PRE COMMENT = 'Presentation - merge targets';
 
-DEFINE TABLE DEMO_PBI.LND."PBI_AllCapacities" (
+DEFINE TABLE DEMO_PBI{{env_suffix}}.LND."PBI_AllCapacities" (
     AUDIT_KEY         NUMBER(38,0)     NOT NULL,
     ROUTE             VARCHAR(200)     NOT NULL,
     PAGE_SEQ          NUMBER(38,0)     NOT NULL,
@@ -281,7 +293,7 @@ DEFINE TABLE DEMO_PBI.LND."PBI_AllCapacities" (
     PAYLOAD           VARIANT
 );
 
-DEFINE TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES (
+DEFINE TABLE DEMO_PBI{{env_suffix}}.PRE.DIM_PBI_CAPACITIES (
     ID                VARCHAR(36)   NOT NULL,
     NAME              VARCHAR(500),
     SKU               VARCHAR(50),
@@ -323,14 +335,18 @@ CREATE DCM PROJECT IF NOT EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
 **Prerequisite:** the schema `DCM_ADMIN.PROJECTS` must already exist — pre-flight creates it.
 The dialog cannot create a missing schema, only the project.
 
-**Plan** → 6 entities, 5 create, 1 alter. **Deploy.** Then verify independently:
+**Plan** → 6 entities, 5 create, 1 alter. **Deploy** — the workspace uses the DEV config, so this
+builds **`DEMO_PBI_DEV`**. Verify independently:
 
 ```sql
 SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
-FROM   DEMO_PBI.INFORMATION_SCHEMA.COLUMNS
+FROM   DEMO_PBI_DEV.INFORMATION_SCHEMA.COLUMNS
 WHERE  TABLE_SCHEMA IN ('LND','PRE')
 GROUP  BY 1,2 ORDER BY 1,2;
 ```
+
+> **Say:** "This is dev. I deployed it straight from my workspace — fast, no ceremony. Prod will
+> be different: it gets deployed from git, after review, and you'll see why."
 
 **Plan again → no changes.** Run it twice, second run does nothing.
 
@@ -391,18 +407,40 @@ LS @DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/;
 
 Run `SHOW GIT REPOSITORIES IN ACCOUNT;` again — **now it appears.**
 
-Then the parity check, which is the point of the section:
+Then the parity check — plan the **DEV** config from git against the dev database the workspace built:
 
 ```sql
 EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    PLAN USING CONFIGURATION DEV
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
 ```
 
 **Expect: no changes.**
 
-> **Say:** "I built that from my workspace. I'm now planning it from a completely different
-> path — the account's own clone, pulled from GitHub — and it agrees the database is already
-> correct. Same truth, verified from two directions."
+> **Say:** "I built dev from my workspace. I'm now planning it from a completely different path —
+> the account's own clone, pulled from GitHub — and it agrees the database is already correct.
+> Same truth, two directions."
+
+### Now the point of the whole demo — deploy PROD from git
+
+```sql
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    DEPLOY AS "prod_release"
+    USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
+FROM   DEMO_PBI_PROD.INFORMATION_SCHEMA.COLUMNS
+WHERE  TABLE_SCHEMA IN ('LND','PRE')
+GROUP  BY 1,2 ORDER BY 1,2;
+```
+
+**Expect: `DEMO_PBI_PROD` built — same shape as dev, `_PROD` suffix.**
+
+> **Say — land this slowly:** "Prod was **not** deployed from my workspace. It came from the
+> reviewed `main` branch, via `USING CONFIGURATION PROD`. Same files that built dev — I copied
+> nothing. And because prod came from git, git and prod agree by construction. That is the entire
+> discipline: dev is where I work, git is what I ship from, prod is only ever a deploy *from git*."
 
 ### Which is which
 
@@ -430,7 +468,7 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 In the workspace, append to `sources/definitions/10_capacities.sql`:
 
 ```sql
-DEFINE TABLE DEMO_PBI.PRE.FACT_PBI_CAPACITY_OBSERVATION (
+DEFINE TABLE DEMO_PBI{{env_suffix}}.PRE.FACT_PBI_CAPACITY_OBSERVATION (
     OBSERVED_DATE     DATE          NOT NULL,
     CAPACITY_ID       VARCHAR(36)   NOT NULL,
     SKU               VARCHAR(50),
@@ -489,22 +527,28 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 > table. That's the second diff. Both are visible before anything happens — what was written,
 > and what it will do."
 
-Deploy it, and confirm:
+Deploy the change — **dev first, then prod from git**, exactly as in real life:
 
 ```sql
+-- prod: from the reviewed main, PROD config
 EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    DEPLOY AS "add_fact" FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    DEPLOY AS "add_fact_prod"
+    USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
 
-SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
-FROM   DEMO_PBI.INFORMATION_SCHEMA.COLUMNS
-WHERE  TABLE_SCHEMA IN ('LND','PRE')
-GROUP  BY 1,2 ORDER BY 1,2;                    -- now 3 tables
+SELECT COUNT(*) AS TABLES
+FROM   DEMO_PBI_PROD.INFORMATION_SCHEMA.TABLES
+WHERE  TABLE_SCHEMA IN ('LND','PRE');           -- now 3
 ```
 
-> **Two copies, two updates.** The **Pull** button updated mine. `FETCH` updated the account's.
-> Miss the second and the 5am check is still reading yesterday's repo.
+*(Dev picked the change up when you pulled it into the workspace and deployed, or you can plan/
+deploy the DEV config from git the same way.)*
 
-**The round trip is complete: Snowflake → git → Snowflake.**
+> **Two copies, two updates.** The **Pull** button updated my workspace. `FETCH` updated the
+> account's clone — the one prod and the 5am check read. Miss the second and both are on
+> yesterday's repo.
+
+**The round trip is complete: workspace → git → prod.**
 
 ---
 
@@ -515,7 +559,8 @@ GROUP  BY 1,2 ORDER BY 1,2;                    -- now 3 tables
 > **Say:** "Everything so far went through git. Now watch someone skip it."
 
 ```sql
-ALTER TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES
+-- a "hotfix" applied straight to PROD, the way it really happens
+ALTER TABLE DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES
     ADD COLUMN QUICK_FIX_DONT_ASK VARCHAR(100);
 ```
 
@@ -524,11 +569,12 @@ ALTER TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES
 > **Say — this is the moment:** "Nothing. No commit, no PR, no diff. As far as git is
 > concerned, nothing happened. And every pipeline we run tonight will be green."
 
-**Back to Snowsight:**
+**Back to Snowsight — drift-check prod against git:**
 
 ```sql
 EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    PLAN USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
 ```
 
 **Expect an `ALTER TABLE`, and in the JSON:**
@@ -544,11 +590,18 @@ columns: removed "QUICK_FIX_DONT_ASK"   datatype VARCHAR(100), nullable true
 
 ## 9 — Put it back
 
-Deploy.
+Deploy prod from git — the reviewed `main` is the truth, so it drops the rogue column:
+
+```sql
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    DEPLOY USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+```
 
 > **Say, and do not skip it:** "Reverting that was a `DROP COLUMN`. If it had held data, that
 > data is gone. Which is why the scheduled job only ever runs `PLAN`. **Deploy is a decision a
-> person makes after reading a plan.** We never schedule it."
+> person makes after reading a plan.** We never schedule it — and prod is reverted *from git*,
+> never by hand."
 
 ---
 
@@ -556,7 +609,7 @@ Deploy.
 
 ```sql
 -- REGION is column 5 of 8
-ALTER TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES DROP COLUMN REGION;
+ALTER TABLE DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES DROP COLUMN REGION;
 ```
 
 Plan. **Expect an error, not a changeset:**
@@ -572,69 +625,43 @@ Unsupported feature 'CREATE OR ALTER TABLE column add before end of column list'
 > In the real slice, **45 of 53 columns are not last in their table.** This is the common case,
 > not the edge case."
 
-Recover on screen: `DROP TABLE DEMO_PBI.PRE.DIM_PBI_CAPACITIES;` then Deploy.
+Recover on screen:
+
+```sql
+DROP TABLE DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES;
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    DEPLOY USING CONFIGURATION PROD FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+```
 
 > **Say:** "Empty table, two steps. With data: unload, drop, redeploy, reload. Planned
 > maintenance, not a 3am fix."
 
 ---
 
-## 11 — One source, two environments
+## 11 — The loop, and why prod ships from git
 
-> **Say:** "Remember `env_suffix`. Here is what it's for."
+By now you've shown the whole developer cycle. State it plainly as the takeaway:
 
-In `manifest.yml`, add a second target and configuration:
-
-```yaml
-targets:
-  DCM_DEV:
-    account_identifier: YVTSYHL-PP80681
-    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    project_owner: ACCOUNTADMIN
-    templating_config: DEV
-  DCM_PROD:                                    # same account, for the demo
-    account_identifier: YVTSYHL-PP80681
-    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    project_owner: ACCOUNTADMIN
-    templating_config: PROD
-
-templating:
-  configurations:
-    DEV:
-      env_suffix: ""
-    PROD:
-      env_suffix: "_PROD"
+```
+   edit in workspace  →  Deploy DEV      (fast, no ceremony — DEMO_PBI_DEV)
+        │
+        └→  commit → push → PR → merge main     (git becomes the truth)
+                 │
+                 └→  DEPLOY USING CONFIGURATION PROD  FROM '@repo/main/'   (DEMO_PBI_PROD)
 ```
 
-Then reference it in the definitions — one edit, at the top of `10_capacities.sql`:
-
-```sql
-DEFINE DATABASE DEMO_PBI{{env_suffix}}
-```
-
-…and the same `{{env_suffix}}` on each `DEFINE SCHEMA` and `DEFINE TABLE`.
-
-Plan against each target. In the workspace use the **target selector** (bottom right of the
-Output pane — it currently reads `DCM_DEV (default)`), or in SQL:
-
-```sql
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    PLAN USING CONFIGURATION PROD
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
-```
-
-**Expect: `DEMO_PBI_PROD`, `DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES`** — a full set of creates,
-because that environment doesn't exist yet.
-
-> **Say:** "Same files. Same commit. Same review. Different environment. The differences between
-> dev and prod are declared in one place instead of living in two copies of the DDL that drift
-> apart — which is how everyone actually ends up with a prod schema nobody can reproduce.
+> **Say:** "Three rules, and they're the whole discipline. **One** — dev is deployed from the
+> workspace, so I move fast. **Two** — nothing reaches prod except through git; prod is always a
+> deploy *from* the reviewed `main`, never from my laptop. **Three** — the same files build both;
+> `env_suffix` is the only difference, so I never keep two copies of the DDL that drift apart.
 >
-> And note *this* is the honest version of 'promote to production': you don't copy anything.
-> You point the same reviewed definition at a different target."
+> That last point is the honest version of 'promote to production' — you don't copy anything. You
+> point one reviewed definition at a different configuration."
 
-**Don't deploy it** unless you have time — the plan is the point. If you do, remember to purge
-it afterwards.
+**Why the order matters — say it if asked.** If you deployed prod from the workspace and pushed to
+git *after*, then for that window git ≠ prod — and the nightly drift check, which reads git, would
+flag prod as drifted for a change you made deliberately. Deploying prod *from* git means git and
+prod agree by construction. Git-first isn't bureaucracy; it's what keeps the drift signal honest.
 
 ---
 
@@ -694,7 +721,7 @@ Show the alert email, and — if you're willing, it lands well:
 
 | Symptom | Cause | Do |
 |---|---|---|
-| Plan shows unexpected creates | Rehearsal objects left behind | `DROP DATABASE DEMO_PBI;` then §2 Deploy |
+| Plan shows unexpected creates | Rehearsal objects left behind | `DROP DATABASE DEMO_PBI_DEV; DROP DATABASE DEMO_PBI_PROD;` then §2 |
 | Plan errors with file and line | Un-revertible drift from earlier | `DROP TABLE` the named table, Deploy |
 | `LS @...DEMO_REPO/...` empty | Clone stale, or pushed to a branch | `ALTER GIT REPOSITORY ... FETCH;` and check the branch |
 | Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
@@ -703,13 +730,13 @@ Show the alert email, and — if you're willing, it lands well:
 | **No Changes tab / no way to push** | Workspace was created without git — **cannot be fixed** | Create a new workspace *From Git repository*, re-create the two files there. Rehearse §2 so this never happens live |
 | Workspace creation fails on the repo | Repo has no commits, so no `main` branch | Add a README on GitHub, retry |
 | Loose `.sql` files in the tree | Earlier experiments outside the project folder | Delete them before demoing — DCM only reads `sources/definitions/`, but a cluttered tree is hard to narrate |
-| Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set it to `""` in the manifest, re-plan |
+| Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set DEV to `"_DEV"`, PROD to `"_PROD"`, re-plan |
 | `Files: 0, Errors: 0` in Output | `sources/definitions/` is empty | Expected before §2's definitions exist. Not an error |
 | Grants macro errors on a missing role | `project_owner_role` still `"MY_ROLE"` | Set it to `ACCOUNTADMIN`, or delete `sources/macros/` |
 | "Project does not exist" dialog | Normal on first Plan — the object hasn't been created yet | Click **Create**. Narrate it, don't apologise for it |
 | **Create** in that dialog fails | Schema `DCM_ADMIN.PROJECTS` missing | `CREATE SCHEMA DCM_ADMIN.PROJECTS;` then Plan again |
-| Plan from git disagrees with workspace | Forgot to `FETCH` after merging | `FETCH`, re-plan. **Good teaching moment — say so out loud** |
-| Everything is wrong | — | `DROP DATABASE DEMO_PBI;` → §2. Rebuild ≈ 15 seconds |
+| Plan from git disagrees with workspace | Forgot to `FETCH`, or wrong `USING CONFIGURATION` | `FETCH`; check DEV vs PROD config. **Good teaching moment — say so** |
+| Everything is wrong | — | `DROP DATABASE DEMO_PBI_DEV; DROP DATABASE DEMO_PBI_PROD;` → §2. Rebuild ≈ 30 seconds |
 
 **Golden rule:** never debug live. Say *"good example of why every run gets logged"*, show the
 log, move on. A failed step becomes a demonstration of the audit trail.
