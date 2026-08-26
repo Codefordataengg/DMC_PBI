@@ -190,7 +190,7 @@ for i,(tag,desc) in enumerate([("DEFINE","a description of what should be true �
     yy=by+i*0.62
     b=box(s,Mx,yy,1.3,0.42,PANEL); txt(s,Mx,yy+0.1,1.3,0.3,[[(tag,11,INK2,True,MONO)]],align=PP_ALIGN.CENTER)
     txt(s,Mx+1.55,yy+0.07,4.6,0.5,[[(desc,13.5,MUTE,False,SANS)]],leading=1.2)
-txt(s,Mx,by+2.05,5.8,0.8,[[("Native to Snowflake · no external state file · preview feature · ",12,FAINT,False,SANS),("TABLE / SCHEMA / DATABASE",11,FAINT,False,MONO),(" are GA within DCM.",12,FAINT,False,SANS)]],leading=1.35)
+txt(s,Mx,by+2.05,5.8,0.8,[[("Native to Snowflake · no external state file · GA since Aug 2026 · broad object coverage — ",12,FAINT,False,SANS),("TABLE · VIEW · TASK · ROLE",11,FAINT,False,MONO),(" and more.",12,FAINT,False,SANS)]],leading=1.35)
 codebox(s,Mx+6.3,3.35,CW-6.3,[
  [("DEFINE TABLE",INK,True),(" DEVELOP.PRE.DIM_PBI_CAPACITIES (",INK2,False)],
  [("    ID              VARCHAR(36)  ",INK2,False),("NOT NULL",MUTE,False),(",",INK2,False)],
@@ -404,8 +404,8 @@ title(s,[("What it does",INK)],y=1.6,size=30); title(s,[("not yet prove",INK)],y
 bullets(s,Mx,3.5,5.6,[
  ("One slice — 8 tables, 53 columns, no data",MUTE),
  ("Untested at full-estate scale (52 tables)",MUTE),
- ("DCM Projects is a preview feature",MUTE),
- ("Grants, tasks, streams unproven",MUTE),
+ ("Data-quality gates (expectations) not yet used",MUTE),
+ ("Grants, tasks, streams not yet tested by us",MUTE),
  ("ERROR recovery rehearsed only on empty tables",MUTE)],size=14,gap=0.52,dot=MUTE)
 box(s,Mx+6.4,3.3,0.012,2.8,LINE)
 txt(s,Mx+6.8,3.5,CW-6.8,2.0,[

@@ -302,7 +302,11 @@ sequenceDiagram
 
 - One slice: 8 tables, 53 columns, **no data**. Behaviour at full-estate scale — 52 tables, 70 statements — is untested.
 - Tables, schemas and databases only. Views, tasks, streams and grants unproven.
-- DCM Projects is a **preview** feature (announced 2026-03-20).
+- DCM Projects reached **GA on 2026-08-07** (announced preview 2026-03-20). The whole POC was
+  built during preview; nothing observed suggests GA changed the behaviours recorded here, but
+  the audit gap (F6) and retention limits are worth re-verifying on the account post-GA.
+- Data-quality **expectations** — declarative DMF checks tested with `snow dcm test` — are a GA
+  capability this POC never used. Likely the most valuable unexplored surface for a governance estate.
 - Runs in a personal account. `SNOWUTILS_RO`/`SNOWUTILS_ADMIN` grants were dropped, so the
   grant layer is entirely untested.
 - **Live as of 2026-08-25:** git is the only source (the stage is dropped) and the nightly task

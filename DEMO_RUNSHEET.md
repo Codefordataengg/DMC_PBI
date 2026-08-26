@@ -682,7 +682,7 @@ Show the alert email, and — if you're willing, it lands well:
 > been able to see.
 >
 > What this is: a proof of concept. 8 tables, no data, one slice, personal account. DCM
-> Projects is a **preview** feature. Grants, tasks and streams are unproven. The un-revertible
+> Projects reached **GA on 2026-08-07**. Grants, tasks and streams are untested *by us*. The un-revertible
 > recovery path has only been rehearsed on empty tables.
 >
 > What it proves: the database can tell us every morning whether it still matches the repo, and
@@ -728,4 +728,4 @@ log, move on. A failed step becomes a demonstration of the audit trail.
 | "Can it roll back?" | Not as a command — revert the commit and deploy. Git *is* the rollback mechanism. |
 | "Two people deploy at once?" | Untested. Genuine gap — say so. |
 | "What does it cost?" | Warehouse time. A plan over 8 tables takes about three seconds. |
-| "Point it at production today?" | No. Preview feature, and `DEPLOY` drops columns. Scheduled `PLAN` is the safe first step — it's read-only. |
+| "Point it at production today?" | It's GA now, so that's no longer a blocker — but `DEPLOY` drops columns, so scheduled `PLAN` (read-only) is still the safe first step. |

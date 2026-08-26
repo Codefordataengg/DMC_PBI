@@ -98,8 +98,8 @@ already offer, and the POC has answered its question in the negative. That is a 
 ## Before building — verify, do not assume
 
 - [x] **DCM projects available on this account** — confirmed 2026-08-22 by `CREATE DCM PROJECT`
-      succeeding on `LV16268` (Snowflake 10.29.101, AWS ap-southeast-2). DCM Projects are in
-      **preview** (announced 2026-03-20); the docs claim all editions but name no cloud or
+      succeeding on `LV16268` (Snowflake 10.29.101, AWS ap-southeast-2). DCM Projects reached
+      **GA on 2026-08-07** (this POC was built during preview, Mar–Aug 2026); the docs claim all editions but name no cloud or
       region scope, so the account itself is the only trustworthy answer. `TABLE`, `SCHEMA`
       and `DATABASE` are GA *within* DCM.
 - [x] **Which `CREATE OR ALTER TABLE` changes are supported** — add column at end, drop column,

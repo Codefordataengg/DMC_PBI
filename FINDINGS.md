@@ -155,7 +155,7 @@ That was the open question after F2 and it is now answered.
 | "This repo can build the database" | ✅ | ✅ |
 | "The database matches this repo" | ❌ | ✅ |
 
-**What this does not prove.** One slice, 8 tables, no data, one account, a preview feature.
+**What this does not prove.** One slice, 8 tables, no data, one account (built during preview; DCM went GA 2026-08-07).
 It does not prove the same holds for views, tasks, streams or grants; it does not prove
 behaviour at full-estate scale (52 tables); and F4 shows the reporting is all-or-nothing, so a single
 un-revertible drift still blinds the check. Widening the scope is the next question,
@@ -515,3 +515,52 @@ the 70 statements) and the **DCM repo** (`DMC_PBI`). Slide 3 now names which one
 **The pattern, again.** Three claims — the `IF NOT EXISTS` message (F12), the statement count,
 and the dashboard attribution — survived across four documents because each was about something
 already believed. None had been checked. All three were a two-minute verification away.
+
+---
+
+## F14 — DCM went GA on 2026-08-07; and we omitted expectations (2026-08-26, verified from docs)
+
+**A web validation of every Snowflake-behaviour claim in the deck**, prompted before presenting.
+Two things were stale or missing.
+
+### 1. No longer preview
+
+Confirmed from two independent Snowflake sources: **DCM Projects reached General Availability
+on 2026-08-07.** The entire POC (Mar–Aug 2026) was built during preview, and every artifact
+still said "preview feature." That was correct when written and stale by the time of the demo —
+the same class of drift this project is about, one level up.
+
+Corrected in the deck (both formats), architecture doc, README, run sheet, PPT prompt and this
+file. GA *removes* a stated limitation, so the honest-limits slide is now stronger, not weaker.
+
+Per-object status at GA (from the supported-entities page):
+
+| GA | Preview |
+|---|---|
+| table · view · task · warehouse · role · schema · database · sequence · stage · tag · network rule · function · procedure · alert | stream · pipe · masking / row-access policy · semantic view · share · inherited grants · ATTACH TAG |
+
+So of our "untested by us" list: **tasks and grants are GA; streams are still preview.** The
+honest limit is that *we* never exercised them — not that DCM can't.
+
+### 2. The concept we omitted — expectations
+
+DCM manages more than schema shape. **Expectations** attach data-quality checks (data metric
+functions) to tables, views and dynamic tables, declared in the same project and run with
+`snow dcm test`. Snowflake positions them as quality gates across bronze/silver/gold layers.
+
+For a Power BI governance estate this is arguably the most valuable unexplored surface: the same
+declarative project that guarantees the schema *matches* could also guarantee the data *passes*.
+The POC never touched it. Worth a slide, and worth a follow-up spike.
+
+### Smaller capabilities we don't mention (GA or new since preview)
+
+- `snow dcm preview` — queries the SELECT of managed views / dynamic tables without running tasks
+- On deploy, a **running task is auto-suspended, altered, and resumed** — no manual dance
+- GA/July-preview additions: Python & Java functions/procedures, tag attachment, inherited grants, network rules
+- `PLAN DELTA` is now a documented, supported variant — still **banned here** (F2): it cannot see out-of-band drift
+
+### Still worth re-verifying on the account post-GA
+
+F6 (DCM records DEPLOY, never PLAN) and the 12-month / no-`ACCOUNT_USAGE` retention were both
+measured or read during preview. Nothing suggests GA changed them, but a 5-minute re-check on
+the account would confirm the audit-table rationale still holds.

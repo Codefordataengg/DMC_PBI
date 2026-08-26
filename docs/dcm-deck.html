@@ -238,7 +238,7 @@
           <p class="sub"><span class="pill p-drift" style="background:var(--panel);color:var(--ink-2)">PLAN</span>&nbsp; a dry run. Changes nothing.</p>
           <p class="sub"><span class="pill p-drift" style="background:var(--panel);color:var(--ink-2)">DEPLOY</span>&nbsp; applies the changeset. A person's decision.</p>
         </div>
-        <p class="sub" style="color:var(--faint)">Native to Snowflake · no external state file · currently a preview feature · <code>TABLE / SCHEMA / DATABASE</code> are GA within DCM.</p>
+        <p class="sub" style="color:var(--faint)">Native to Snowflake · no external state file · <strong>GA since Aug 2026</strong> · broad object coverage — <code>TABLE · VIEW · TASK · ROLE · WAREHOUSE</code> and more.</p>
       </div>
       <div class="grow" style="display:flex;align-items:center">
         <pre style="width:100%"><b>DEFINE TABLE</b> DEVELOP.PRE.DIM_PBI_CAPACITIES (
@@ -617,8 +617,8 @@ templating:
         <div class="stack" style="gap:.55rem">
           <p class="sub">One slice — 8 tables, 53 columns, <strong>no data</strong></p>
           <p class="sub">Untested at full-estate scale (52 tables)</p>
-          <p class="sub">DCM Projects is a <strong>preview</strong> feature</p>
-          <p class="sub">Grants, tasks, streams unproven</p>
+          <p class="sub">Data-quality gates (<code>expectations</code>) not yet used</p>
+          <p class="sub">Grants, tasks, streams not yet tested <em>by us</em></p>
           <p class="sub"><code>ERROR</code> recovery rehearsed only on empty tables</p>
         </div>
       </div>

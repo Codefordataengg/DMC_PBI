@@ -74,7 +74,7 @@ something that looked like a check and never checked anything.
 ### Slide 4 — What DCM Projects is
 Title: **Declare the state. Let Snowflake work out the difference.**
 
-- Native Snowflake feature, **currently in preview**
+- Native Snowflake feature, **GA since Aug 2026** (built during preview)
 - You declare objects in `.sql` files; Snowflake computes the changeset
 - `PLAN` — dry run, changes nothing · `DEPLOY` — applies it
 - No external state file, unlike Terraform
@@ -259,7 +259,7 @@ Title: **What this does not yet prove**
 
 **Limits**
 - One slice: 8 tables, 53 columns, **no data**. Untested at full-estate scale (52 tables)
-- DCM Projects is a **preview** feature
+- Data-quality gates (expectations) not yet used
 - Grants, tasks and streams unproven
 - `ERROR` recovery rehearsed only on empty tables
 
