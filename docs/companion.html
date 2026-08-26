@@ -168,6 +168,9 @@
     <p>Changes only travel one way — from git, down to the database. A hand-made <code>ALTER</code> never flows back into the repo. There's no path back.</p>
     <p><span class="beat">(beat)</span> That asymmetry is the entire reason drift detection has to exist. If everything went through git, you wouldn't need it.</p>
   </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“Why can't DCM read prod and update the repo?” — because there's no safe way to tell an intended hand-change from a mistake. Reverse-engineering the database into declarations is guessing; detecting the difference and letting a human decide is not.</li></ul>
+  </div>
 </div>
 
 <!-- 10 -->
@@ -189,6 +192,9 @@
   <div class="say"><span class="lbl">Say</span>
     <p>This is the spine of the whole idea. Three questions.</p>
     <p>What changed in the <b>definition</b>? — <code>git diff</code> answers that. What will change in the <b>database</b>? — the plan answers that. What changed <b>without going through either</b>? <span class="beat">(beat)</span> That third one — that's drift. And it's the one we have never been able to see.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“Isn't CI enough?” — CI only sees changes that go <i>through</i> CI. A hand-made <code>ALTER</code> on prod never touches a pull request, so no amount of CI catches it. That's the third diff.</li></ul>
   </div>
 </div>
 
@@ -223,6 +229,9 @@
     <p>We found thirteen things, and four of them came from deliberately breaking it.</p>
     <p>The verdict — yes, it detects hand-made drift, at column level. It records deploys but never plans, so an audit table is mandatory. Dropping a non-last column is un-revertible. And my favourite: <span class="beat">(beat)</span> our own monitor sat suspended for a day while its health view cheerfully reported “OK.”</p>
     <p>Every failure we found was the same shape — something reporting success without checking what it claimed to check.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“Doesn't finding bugs in your own monitor undermine it?” — the opposite. We found them <i>because</i> we deliberately broke it and re-ran end to end. A monitor nobody has made fail is one nobody should trust.</li></ul>
   </div>
 </div>
 
@@ -273,6 +282,74 @@
   <div class="detail"><span class="lbl">If asked — next steps</span>
     <ul><li>Widen past capacities; rehearse the un-revertible recovery on a table with data; explore the data-quality expectations for real.</li></ul>
   </div>
+</div>
+
+
+<h2 class="part">Facts at a glance — quick reference</h2>
+<div class="detail" style="columns:2;column-gap:8mm;">
+<ul style="padding-left:5mm;">
+<li><b>70</b> <code>CREATE TABLE IF NOT EXISTS</code> across <b>8</b> pipeline files — the problem</li>
+<li><b>DCM GA:</b> 7 Aug 2026 (we built the POC during preview)</li>
+<li><b>Edition:</b> works on <b>Standard</b> — schema and data-quality both verified</li>
+<li><b>POC scope:</b> 8 tables, 53 columns, <b>no data</b>, personal account</li>
+<li><b>Findings:</b> 13, four from deliberately breaking it</li>
+<li><b>45 of 53</b> columns aren't last in their table → <code>ERROR</code> is the common case</li>
+<li><b>Snowflake records DEPLOY, never PLAN;</b> native history 12 months, no <code>ACCOUNT_USAGE</code></li>
+<li><b>Nightly check:</b> 05:00 UTC, PLAN only, ~30&nbsp;s, ran unattended two nights</li>
+<li><b>Three verdicts:</b> CLEAN / DRIFT / ERROR</li>
+<li><b>Cost:</b> warehouse compute only — a plan is ~3&nbsp;s on an X-Small</li>
+</ul>
+</div>
+
+<h2 class="part">Questions you'll get — and your answers</h2>
+
+<div class="detail" style="margin-bottom:3mm;"><span class="lbl" style="color:var(--accent2);">Adoption &amp; cost</span>
+<p style="margin:1mm 0 0;"><b>“What does it cost to run?”</b> &nbsp;Warehouse compute only — a plan over 8 tables is about three seconds on an X-Small. No new licensing; it's a native GA feature. The drift log is trivial storage.</p>
+<p style="margin:2mm 0 0;"><b>“How much effort to adopt for our real estate?”</b> &nbsp;The DDL already exists — we capture it from the live database with <code>GET_DDL</code>, put it in <code>DEFINE</code> files, and version it. We diffed the capacities slice by hand and it matched exactly. The real work is process, not typing: make prod deploy from git, and schedule the nightly PLAN. Start PLAN-only — read-only, zero risk.</p>
+<p style="margin:2mm 0 0;"><b>“Does this replace Matillion?”</b> &nbsp;No. Matillion moves data; DCM manages the shape of the tables it lands in. DCM would own the DDL that today lives inside Matillion.</p>
+</div>
+
+<div class="detail" style="margin-bottom:3mm;"><span class="lbl" style="color:var(--accent2);">Production &amp; risk</span>
+<p style="margin:1mm 0 0;"><b>“Can we point this at production today?”</b> &nbsp;The feature is GA and production-grade. Our POC is one slice with no data, so I'd go PLAN-first on prod — it's read-only, catches drift, and risks nothing — then bring DEPLOY under it once we've rehearsed the recovery paths. I would not schedule DEPLOY.</p>
+<p style="margin:2mm 0 0;"><b>“DEPLOY drops columns — what about real data?”</b> &nbsp;Exactly why DEPLOY is never automated — it's a human decision after reading a plan. Dropped-column data is recoverable via Time&nbsp;Travel within retention, but we treat a drop as deliberate and reviewed. Un-revertible cases (mid-list drop, narrowing a VARCHAR) are planned maintenance: unload, drop, redeploy, reload.</p>
+<p style="margin:2mm 0 0;"><b>“What if two people deploy at once?”</b> &nbsp;Honestly — untested. A genuine gap; I'd verify DCM's locking before relying on it in a team. Flagging it rather than guessing.</p>
+<p style="margin:2mm 0 0;"><b>“How do we roll back?”</b> &nbsp;Not a command — revert the commit and deploy again. Git is the rollback mechanism. Because prod is deployed from git, the previous good state is just an earlier commit.</p>
+<p style="margin:2mm 0 0;"><b>“What if the nightly check silently stops?”</b> &nbsp;That's the one we got wrong and fixed. A suspended task is silent exactly like a passing one, so the health view checks whether the task is actually <i>scheduled</i> — not just whether the log is recent — and says so loudly if it isn't.</p>
+</div>
+
+<div class="detail" style="margin-bottom:3mm;"><span class="lbl" style="color:var(--accent2);">Alternatives</span>
+<p style="margin:1mm 0 0;"><b>“Why not Terraform?”</b> &nbsp;Terraform suits account-level objects — warehouses, roles, integrations — and keeps an external state file you must manage and secure. DCM is native, stateless, and covers in-database objects. Common practice is both: Terraform for the account, DCM for the schema.</p>
+<p style="margin:2mm 0 0;"><b>“Why not schemachange / migrations?”</b> &nbsp;Those are imperative — you write the <code>ALTER</code> steps in order. DCM is declarative — you say what you want and it computes the diff. Migrations win for complex backfills; declarative wins for keeping shape in sync and detecting drift. You can use both.</p>
+<p style="margin:2mm 0 0;"><b>“Why not just tell people not to edit prod by hand?”</b> &nbsp;You can't enforce it, and emergencies happen — someone hotfixes prod at 2am. Discipline isn't a control. The point is to <i>detect</i> it when it happens so the repo can be corrected, not to trust it never does.</p>
+</div>
+
+<div class="detail" style="margin-bottom:3mm;"><span class="lbl" style="color:var(--accent2);">Security &amp; access</span>
+<p style="margin:1mm 0 0;"><b>“Where does the GitHub token live?”</b> &nbsp;In a Snowflake <code>SECRET</code> — encrypted, not readable back — referenced by the git integration. For production we'd rotate it and scope it to the specific repos.</p>
+<p style="margin:2mm 0 0;"><b>“Who can deploy to prod?”</b> &nbsp;Whoever holds the role that owns the project — deploy is role-gated like any privileged operation. And prod deploys come through git and review, so it's gated twice.</p>
+<p style="margin:2mm 0 0;"><b>“Does DCM read our data?”</b> &nbsp;No — it manages structure only, never rows. (Expectations run metric functions over data, but that's a separate, opt-in feature.)</p>
+</div>
+
+<div class="detail"><span class="lbl" style="color:var(--accent2);">Scope, maturity &amp; ops</span>
+<p style="margin:1mm 0 0;"><b>“Is it GA / what edition?”</b> &nbsp;GA since 7 Aug 2026; works on Standard. Tables, views, tasks, roles, warehouses, schemas are GA within DCM; streams and some policies are still preview.</p>
+<p style="margin:2mm 0 0;"><b>“Does it scale to our whole estate?”</b> &nbsp;Untested at our full size — the POC is 8 tables. A plan re-validates all definitions, and very large projects take longer. I'd widen incrementally and measure.</p>
+<p style="margin:2mm 0 0;"><b>“Does it handle views, tasks, streams, grants?”</b> &nbsp;They're supported object types — but <i>we</i> haven't exercised them in this POC. Tasks and grants are GA; streams are preview. Honest scope limit.</p>
+<p style="margin:2mm 0 0;"><b>“How are we alerted, and how long is history kept?”</b> &nbsp;Email via a notification integration, only when the verdict isn't clean (silent on clean, so nobody filters it). Our drift log is unlimited; Snowflake's native history caps at 12 months.</p>
+</div>
+
+<h2 class="part">Glossary — in case a term comes up</h2>
+<div class="detail" style="columns:2;column-gap:8mm;">
+<ul style="padding-left:5mm;">
+<li><b>DCM Projects</b> — Declarative Change Management: declare the desired schema, Snowflake reconciles to it.</li>
+<li><b>DEFINE</b> — declares an object (vs <code>CREATE</code>, which instructs). The definition file is the source of truth.</li>
+<li><b>PLAN</b> — a dry run; computes the changeset, changes nothing.</li>
+<li><b>DEPLOY</b> — applies the changeset (<code>CREATE OR ALTER</code> underneath).</li>
+<li><b>Drift</b> — the database differing from the declared state, from an out-of-band change.</li>
+<li><b>GIT REPOSITORY</b> — an account-level clone of the repo inside Snowflake; updated by <code>FETCH</code>.</li>
+<li><b>Workspace</b> — a per-user Snowsight editor connected to git; can't be read by automation.</li>
+<li><b>env_suffix</b> — a templating value that appends <code>_DEV</code>/<code>_PROD</code> so one file builds both.</li>
+<li><b>USING CONFIGURATION</b> — selects which config (dev/prod) a plan or deploy uses.</li>
+<li><b>Expectation</b> — a data-quality check (metric function) attached to a table; run with <code>snow dcm test</code>.</li>
+</ul>
 </div>
 
 </body></html>
