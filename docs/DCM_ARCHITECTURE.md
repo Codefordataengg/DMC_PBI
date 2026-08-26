@@ -300,7 +300,7 @@ sequenceDiagram
 
 ## 10. Honest limits
 
-- One slice: 8 tables, 53 columns, **no data**. Behaviour at 64 tables is untested.
+- One slice: 8 tables, 53 columns, **no data**. Behaviour at full-estate scale — 52 tables, 70 statements — is untested.
 - Tables, schemas and databases only. Views, tasks, streams and grants unproven.
 - DCM Projects is a **preview** feature (announced 2026-03-20).
 - Runs in a personal account. `SNOWUTILS_RO`/`SNOWUTILS_ADMIN` grants were dropped, so the

@@ -112,7 +112,7 @@ para(tf, "A proof of concept — what it does, what it costs,", 19, LIGHT, space
 para(tf, "and what it cannot do", 19, LIGHT)
 ln = rect(s, M, 5.35, 2.0, 0.035, SLATE)
 tf = tb(s, M, 5.72, CW, 0.9)
-para(tf, "DCM Projects  ·  8 tables  ·  53 columns  ·  12 findings", 14, LIGHT, first=True, space_after=3)
+para(tf, "DCM Projects  ·  8 tables  ·  53 columns  ·  13 findings", 14, LIGHT, first=True, space_after=3)
 para(tf, "Personal Snowflake account  ·  August 2026", 13, SLATE)
 
 # ---------------------------------------------------------------- 2 problem
@@ -390,7 +390,7 @@ kicker(s, y+0.3, "So we keep our own log. It answers: when did this drift start?
 
 # ---------------------------------------------------------------- 16 findings
 s = blank()
-y = title(s, "Twelve findings. Four came from deliberate sabotage.")
+y = title(s, "Thirteen findings. Four came from deliberate sabotage.")
 y = table(s, M, y+0.2, CW,
     [["", "Finding"],
      ["F5", "Drift is detected and reported at column level — the verdict"],
@@ -428,7 +428,7 @@ y = title(s, "What this does not yet prove")
 cw2 = (CW - 0.5) / 2
 for i, (hd, tone, items) in enumerate([
     ("LIMITS", SLATE, ["One slice: 8 tables, 53 columns, no data",
-                       "Untested at 64 tables",
+                       "Untested at full-estate scale (52 tables, 70 statements)",
                        "DCM Projects is a preview feature",
                        "Grants, tasks and streams unproven",
                        "ERROR recovery rehearsed only on empty tables"]),

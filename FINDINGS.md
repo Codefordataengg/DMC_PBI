@@ -157,7 +157,7 @@ That was the open question after F2 and it is now answered.
 
 **What this does not prove.** One slice, 8 tables, no data, one account, a preview feature.
 It does not prove the same holds for views, tasks, streams or grants; it does not prove
-behaviour at 64 tables; and F4 shows the reporting is all-or-nothing, so a single
+behaviour at full-estate scale (52 tables); and F4 shows the reporting is all-or-nothing, so a single
 un-revertible drift still blinds the check. Widening the scope is the next question,
 not a formality.
 

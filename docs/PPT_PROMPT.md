@@ -230,7 +230,7 @@ DEPLOY   4      ← no PLAN rows. none.
 - So we keep our own log — it answers *"when did this drift start?"*
 
 ### Slide 16 — What we found by breaking it
-Title: **Twelve findings. Four came from deliberate sabotage.**
+Title: **Thirteen findings. Four came from deliberate sabotage.**
 
 | | Finding |
 |---|---|
@@ -258,7 +258,7 @@ Title: **Live, end to end, about 20 minutes**
 Title: **What this does not yet prove**
 
 **Limits**
-- One slice: 8 tables, 53 columns, **no data**. Untested at 64 tables
+- One slice: 8 tables, 53 columns, **no data**. Untested at full-estate scale (52 tables)
 - DCM Projects is a **preview** feature
 - Grants, tasks and streams unproven
 - `ERROR` recovery rehearsed only on empty tables
