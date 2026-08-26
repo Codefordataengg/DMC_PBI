@@ -19,7 +19,8 @@ way.
 | Secret (git PAT) | ⚠️ only inside the *From Git repository* dialog | ✅ `CREATE SECRET` |
 | API integration | ✅ Admin → **Integrations** → Create | ✅ |
 | **Git repository object** | ❌ **no UI path** — a workspace does *not* create one | ✅ `CREATE GIT REPOSITORY` |
-| DCM project object | ✅ Workspaces → **+ Add new** → DCM Project, or the *Project does not exist* dialog | ✅ |
+| DCM project **folder** (files) | ✅ Workspaces → **+ Add new** → DCM Project | ❌ n/a |
+| DCM project **object** (Snowflake) | ✅ the *Project does not exist* → **Create** dialog | ✅ |
 | Plan / Deploy | ✅ workspace buttons | ✅ |
 | Audit + alerting scripts | ❌ paste into a worksheet | ✅ |
 | Notification integration | ✅ Admin → **Integrations** → Create | ✅ |
@@ -110,6 +111,19 @@ Set allowed prefix `https://github.com/Codefordataengg`. Or run §2 of the SQL f
 Stop after §4's `LS`. **Expect 20+ files under `branches/main/`.**
 
 ### 3 — The project object
+
+> **Two things share the name "DCM project" and they are not the same:**
+>
+> | | What it is | Made by |
+> |---|---|---|
+> | **Project folder** | `manifest.yml` + `sources/definitions/` — *files* | `+ Add new` → **DCM Project** |
+> | **Project object** | Snowflake object holding deployment history — *a database object* | the **Create** dialog, or SQL |
+>
+> Proof they are separate: create a folder with `+ Add new → DCM Project`, click **Plan**, and
+> Snowsight tells you the project *does not exist*. The folder did not make the object.
+>
+> **For this bootstrap you do not need `+ Add new`** — the files come from git, so the workspace
+> already has them. You need only the object, below.
 
 **UI, and this is the one worth doing in the interface:** open a workspace containing the
 project's `manifest.yml` and click **Plan**. Snowsight sees the manifest names a project that
