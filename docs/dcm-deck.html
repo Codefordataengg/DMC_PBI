@@ -1,0 +1,656 @@
+<title>Schema Drift Caught</title>
+<style>
+  /* ── committed single-theme deck: paint everything, ignore host theme ── */
+  :root{
+    --bg:#EDF0F2; --stage:#FBFBFC; --surface:#FFFFFF; --panel:#EEF1F3;
+    --ink:#25313A; --ink-2:#36454F; --muted:#6C7B88; --faint:#9AA8B3;
+    --line:#D3D8DD; --line-2:#C2CAD1;
+    --accent:#B26B12; --accent-2:#8A5210; --accent-soft:#F6E9D6; --accent-line:#E3B173;
+    --clean:#4B6650; --drift:#B26B12; --error:#8C3B2E;
+    --clean-soft:#E7EDE8; --drift-soft:#F6E9D6; --error-soft:#F3E2DE;
+    --mono:ui-monospace,"SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+
+  /* ── deck scroller ── */
+  .deck{
+    height:100vh; width:100vw; overflow-x:auto; overflow-y:hidden;
+    display:flex; scroll-snap-type:x mandatory; scroll-behavior:smooth;
+  }
+  .slide{
+    position:relative; flex:0 0 100vw; height:100vh; scroll-snap-align:center;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:clamp(2rem,5.5vw,5.5rem) clamp(2rem,7vw,8rem);
+    background:var(--stage);
+  }
+  /* thin frame so each slide reads as a composed field */
+  .slide::after{
+    content:""; position:absolute; inset:clamp(1rem,2.4vw,2.2rem);
+    border:1px solid var(--line); pointer-events:none;
+  }
+  .slide > *{position:relative; z-index:1}
+
+  /* ── shared chrome ── */
+  .kicker{
+    font-family:var(--mono); font-size:clamp(.62rem,.86vw,.78rem);
+    letter-spacing:.24em; text-transform:uppercase; color:var(--muted);
+    margin:0 0 clamp(1rem,2.4vw,2rem); display:flex; align-items:center; gap:.7rem;
+  }
+  .kicker::before{content:""; width:1.6rem; height:2px; background:var(--accent)}
+  .foot{
+    position:absolute; left:clamp(2rem,7vw,8rem); right:clamp(2rem,7vw,8rem);
+    bottom:clamp(1.6rem,3.4vw,3rem); display:flex; justify-content:space-between;
+    align-items:center; font-family:var(--mono); font-size:.7rem;
+    letter-spacing:.12em; color:var(--faint); z-index:1;
+  }
+  .foot .num b{color:var(--ink-2)}
+
+  h1{font-size:clamp(2.2rem,5.6vw,4.4rem); line-height:1.02; letter-spacing:-.03em;
+     font-weight:800; margin:0; text-wrap:balance; color:var(--ink)}
+  h2{font-size:clamp(1.7rem,3.7vw,3rem); line-height:1.05; letter-spacing:-.024em;
+     font-weight:800; margin:0 0 clamp(1rem,2.2vw,1.7rem); text-wrap:balance; color:var(--ink)}
+  h2 .amber{color:var(--accent)}
+  p{margin:0; line-height:1.5}
+  .lede{font-size:clamp(1.05rem,1.9vw,1.5rem); color:var(--ink-2); max-width:34ch; line-height:1.4}
+  .sub{font-size:clamp(.95rem,1.5vw,1.2rem); color:var(--muted); max-width:60ch; line-height:1.55}
+  strong{font-weight:700; color:var(--ink)}
+  .mono{font-family:var(--mono)}
+  .amber{color:var(--accent)}
+  .stack{display:flex; flex-direction:column; gap:clamp(.7rem,1.6vw,1.3rem)}
+  .row{display:flex; gap:clamp(1rem,3vw,3rem); align-items:center}
+  .grow{flex:1}
+
+  /* code block */
+  pre{font-family:var(--mono); background:var(--panel); border:1px solid var(--line);
+      border-left:3px solid var(--accent); margin:0; padding:1.1rem 1.3rem;
+      font-size:clamp(.72rem,1.05vw,.95rem); line-height:1.65; color:var(--ink-2);
+      overflow-x:auto; max-width:100%}
+  pre b{color:var(--ink); font-weight:700}
+  pre .am{color:var(--accent); font-weight:700}
+  pre .dim{color:var(--muted)}
+  code{font-family:var(--mono); font-size:.9em; background:var(--panel);
+       padding:.08em .38em; border-radius:2px; color:var(--ink-2)}
+
+  /* pills */
+  .pill{display:inline-flex; align-items:center; font-family:var(--mono);
+        font-size:.72rem; font-weight:700; letter-spacing:.08em;
+        padding:.2em .6em; border-radius:2px; white-space:nowrap}
+  .p-clean{background:var(--clean-soft); color:var(--clean)}
+  .p-drift{background:var(--drift-soft); color:var(--drift)}
+  .p-error{background:var(--error-soft); color:var(--error)}
+
+  /* generic table */
+  table{border-collapse:collapse; width:100%; font-size:clamp(.85rem,1.35vw,1.12rem)}
+  caption{caption-side:top; text-align:left; font-family:var(--mono); font-size:.72rem;
+          letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding-bottom:.7rem}
+  th,td{text-align:left; padding:.7em .9em; border-bottom:1px solid var(--line)}
+  thead th{font-family:var(--mono); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase;
+           color:var(--faint); font-weight:700; border-bottom:1px solid var(--line-2)}
+  .yes{color:var(--clean); font-weight:700}
+  .no{color:var(--error); font-weight:700}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  figure{margin:0}
+  svg{max-width:100%; height:auto; display:block}
+  figcaption{font-size:clamp(.8rem,1.3vw,1rem); color:var(--muted); margin-top:1rem; max-width:64ch; line-height:1.5}
+
+  /* progress ticks */
+  .ticks{display:flex; gap:.32rem}
+  .ticks i{width:.5rem; height:.5rem; border:1px solid var(--line-2); border-radius:50%;
+           display:block; transition:background .3s,border-color .3s}
+  .ticks i.on{background:var(--accent); border-color:var(--accent)}
+
+  /* entry motion */
+  .reveal > *{opacity:0; transform:translateY(14px); animation:rise .62s cubic-bezier(.2,.7,.2,1) forwards}
+  .reveal > *:nth-child(1){animation-delay:.05s}
+  .reveal > *:nth-child(2){animation-delay:.14s}
+  .reveal > *:nth-child(3){animation-delay:.23s}
+  .reveal > *:nth-child(4){animation-delay:.32s}
+  .reveal > *:nth-child(5){animation-delay:.41s}
+  .reveal > *:nth-child(6){animation-delay:.5s}
+  @keyframes rise{to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion:reduce){
+    .deck{scroll-behavior:auto}
+    .reveal > *{animation:none; opacity:1; transform:none}
+  }
+
+  /* nav hint (fades) */
+  .hint{position:fixed; bottom:1rem; left:50%; transform:translateX(-50%);
+        font-family:var(--mono); font-size:.7rem; letter-spacing:.14em; color:var(--faint);
+        background:var(--surface); border:1px solid var(--line); padding:.4rem .8rem;
+        border-radius:2px; z-index:20; animation:fade 5s forwards 2s}
+  @keyframes fade{to{opacity:0; visibility:hidden}}
+
+  /* card grids */
+  .cards{display:grid; gap:clamp(.7rem,1.6vw,1.2rem)}
+  .card{background:var(--surface); border:1px solid var(--line); padding:clamp(.9rem,1.8vw,1.4rem)}
+  .card.hot{border-color:var(--accent-line); border-top:3px solid var(--accent)}
+  .card h3{margin:0 0 .4rem; font-size:clamp(1rem,1.5vw,1.25rem); letter-spacing:-.01em}
+  .card p{font-size:clamp(.82rem,1.25vw,1rem); color:var(--muted)}
+  .tag{font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint)}
+
+  /* stat */
+  .stat{font-family:var(--mono); font-weight:800; color:var(--accent); line-height:.9;
+        font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+
+  /* title slide */
+  .title-slide{background:var(--ink-2); color:#fff}
+  .title-slide::after{border-color:rgba(255,255,255,.16)}
+  .title-slide .kicker{color:#B9C4CC}
+  .title-slide .kicker::before{background:var(--accent-line)}
+  .title-slide h1{color:#fff}
+  .title-slide .thesis{font-size:clamp(1.05rem,2vw,1.6rem); color:#C4CED5; max-width:40ch; line-height:1.4; margin-top:1.4rem}
+  .title-slide .meta{font-family:var(--mono); font-size:.8rem; letter-spacing:.1em; color:#94A3AD; margin-top:2.4rem}
+  .title-slide .meta b{color:var(--accent-line)}
+  .title-slide .foot{color:#7C8B95}
+  .title-slide .foot .num b{color:#C4CED5}
+  .rule{width:3rem; height:3px; background:var(--accent); margin:1.8rem 0 0}
+</style>
+
+<div class="deck" id="deck">
+
+  <!-- 1 ── TITLE ────────────────────────────────────────────── -->
+  <section class="slide title-slide">
+    <div class="reveal">
+      <p class="kicker">Snowflake DCM · proof of concept</p>
+      <h1>The database that<br>couldn't see itself</h1>
+      <div class="rule"></div>
+      <p class="thesis">Our repo could always <em>build</em> the database.
+        It could never prove the database still <em>matched</em>. This is how we closed that gap —
+        and what it cost.</p>
+      <p class="meta"><b>8</b> tables &nbsp;·&nbsp; <b>53</b> columns &nbsp;·&nbsp; <b>13</b> findings &nbsp;·&nbsp; personal Snowflake account · Aug 2026</p>
+    </div>
+    <div class="foot"><span class="mono">SCHEMA DRIFT, CAUGHT</span><span class="num mono"><b>01</b> / 15</span></div>
+  </section>
+
+  <!-- 2 ── THE PROBLEM ──────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">The problem</p>
+    <div class="reveal" style="display:flex;flex-direction:column;gap:clamp(1.2rem,2.6vw,2rem)">
+      <h2>Our pipelines cannot <span class="amber">see</span> the database</h2>
+      <p class="sub"><strong>70</strong> <code>CREATE TABLE IF NOT EXISTS</code> statements across 8 pipeline files.
+        Against a table that already exists, that statement does nothing at all — and cannot look inside.</p>
+      <figure>
+        <svg viewBox="0 0 900 200" role="img" aria-label="Three steps: pipeline creates the table, someone adds a column by hand, the pipeline re-runs and reports success while the extra column remains.">
+          <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#6C7B88"/></marker></defs>
+          <!-- step 1 -->
+          <rect x="8" y="40" width="250" height="118" fill="#FFFFFF" stroke="#C2CAD1"/>
+          <text x="26" y="70" font-family="ui-monospace,monospace" font-size="15" font-weight="700" fill="#25313A">1 · created</text>
+          <text x="26" y="98" font-family="ui-monospace,monospace" font-size="13" fill="#6C7B88">ID       VARCHAR(36)</text>
+          <text x="26" y="118" font-family="ui-monospace,monospace" font-size="13" fill="#6C7B88">NAME     VARCHAR(200)</text>
+          <line x1="266" y1="99" x2="316" y2="99" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#ar)"/>
+          <!-- step 2 -->
+          <rect x="325" y="40" width="250" height="118" fill="#FFFFFF" stroke="#C2CAD1"/>
+          <text x="343" y="70" font-family="ui-monospace,monospace" font-size="15" font-weight="700" fill="#25313A">2 · altered by hand</text>
+          <text x="343" y="98" font-family="ui-monospace,monospace" font-size="13" fill="#6C7B88">ID       VARCHAR(36)</text>
+          <text x="343" y="118" font-family="ui-monospace,monospace" font-size="13" fill="#6C7B88">NAME     VARCHAR(200)</text>
+          <text x="343" y="138" font-family="ui-monospace,monospace" font-size="13" font-weight="700" fill="#B26B12">SALARY   VARCHAR(100)</text>
+          <line x1="583" y1="99" x2="633" y2="99" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#ar)"/>
+          <!-- step 3 -->
+          <rect x="642" y="40" width="250" height="118" fill="#FFFFFF" stroke="#C2CAD1"/>
+          <text x="660" y="70" font-family="ui-monospace,monospace" font-size="15" font-weight="700" fill="#25313A">3 · re-run DDL</text>
+          <text x="660" y="97" font-family="ui-monospace,monospace" font-size="12.5" fill="#4B6650">"already exists,</text>
+          <text x="660" y="114" font-family="ui-monospace,monospace" font-size="12.5" fill="#4B6650"> statement succeeded"</text>
+          <text x="660" y="140" font-family="ui-monospace,monospace" font-size="13" font-weight="700" fill="#B26B12">SALARY still there</text>
+        </svg>
+        <figcaption>Snowflake is honest — it tells you it did nothing. The defect is that <strong>“did nothing” counts as success</strong>,
+          and nothing ever compares the table to what was declared. It stays invisible because it is harmless.</figcaption>
+      </figure>
+    </div>
+    <div class="foot"><span class="mono">THE PROBLEM</span><span class="num mono"><b>02</b> / 15</span></div>
+  </section>
+
+  <!-- 3 ── TWO GUARANTEES ───────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Two guarantees</p>
+    <div class="reveal stack">
+      <h2>Only one of these was ever real</h2>
+      <p class="sub" style="margin-top:-.4rem"><span class="mono" style="color:var(--faint)">“repo”</span> = the Matillion pipeline repo that holds the 70 DDL statements.</p>
+      <table style="max-width:60rem">
+        <thead><tr><th></th><th>Before</th><th>With DCM</th></tr></thead>
+        <tbody>
+          <tr><td>The repo can <strong>build</strong> the database</td><td class="yes">YES</td><td class="yes">YES</td></tr>
+          <tr><td>The database still <strong>matches</strong> the repo</td><td class="no">NO</td><td class="yes">YES</td></tr>
+        </tbody>
+      </table>
+      <p class="sub" style="max-width:66ch">Two different guarantees — only the first was ever true, and nothing in the estate could tell you the difference.
+        Related, and why we went looking: a dashboard dimension sat frozen for <strong>seven months</strong>. A different defect —
+        a trailing comma an alert-then-succeed pattern hid — but the <span class="amber">same shape</span>: something that looked like a check and never checked.</p>
+    </div>
+    <div class="foot"><span class="mono">TWO GUARANTEES</span><span class="num mono"><b>03</b> / 15</span></div>
+  </section>
+
+  <!-- 4 ── WHAT DCM IS ──────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">What DCM Projects is</p>
+    <div class="reveal row" style="align-items:stretch;gap:clamp(1.5rem,4vw,4rem)">
+      <div class="stack grow" style="justify-content:center;max-width:38ch">
+        <h2>Declare the state.<br>Snowflake finds the difference.</h2>
+        <div class="stack" style="gap:.85rem">
+          <p class="sub"><span class="pill p-drift" style="background:var(--panel);color:var(--ink-2)">DEFINE</span>&nbsp; a description of what should be true — not an instruction to do something.</p>
+          <p class="sub"><span class="pill p-drift" style="background:var(--panel);color:var(--ink-2)">PLAN</span>&nbsp; a dry run. Changes nothing.</p>
+          <p class="sub"><span class="pill p-drift" style="background:var(--panel);color:var(--ink-2)">DEPLOY</span>&nbsp; applies the changeset. A person's decision.</p>
+        </div>
+        <p class="sub" style="color:var(--faint)">Native to Snowflake · no external state file · currently a preview feature · <code>TABLE / SCHEMA / DATABASE</code> are GA within DCM.</p>
+      </div>
+      <div class="grow" style="display:flex;align-items:center">
+        <pre style="width:100%"><b>DEFINE TABLE</b> DEVELOP.PRE.DIM_PBI_CAPACITIES (
+    ID                VARCHAR(36)   <span class="dim">NOT NULL</span>,
+    NAME              VARCHAR(500),
+    SKU               VARCHAR(50),
+    IS_CURRENT_FLAG   NUMBER(1,0)   <span class="dim">DEFAULT 1</span>
+);
+
+<span class="dim">-- executes underneath as CREATE OR ALTER</span>
+<span class="dim">-- remove this block, and the next</span>
+<span class="am">-- deploy drops the table.</span></pre>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">WHAT DCM IS</span><span class="num mono"><b>04</b> / 15</span></div>
+  </section>
+
+  <!-- 5 ── BEFORE / AFTER ───────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Infrastructure as code</p>
+    <div class="reveal stack">
+      <h2>The DDL stops living inside the ETL</h2>
+      <div class="row" style="align-items:stretch;gap:clamp(1rem,2.5vw,2rem)">
+        <div class="card grow">
+          <p class="tag">Before</p>
+          <div class="stack" style="gap:.5rem;margin-top:.7rem">
+            <p class="sub">DDL embedded in orchestration — 70 statements, 8 files</p>
+            <p class="sub">runs as a side effect of a data load</p>
+            <p class="sub">no review · no diff</p>
+            <p class="sub" style="color:var(--error)">drift is invisible</p>
+          </div>
+        </div>
+        <div class="card hot grow">
+          <p class="tag" style="color:var(--accent)">After</p>
+          <div class="stack" style="gap:.5rem;margin-top:.7rem">
+            <p class="sub">DDL in git, reviewed like application code</p>
+            <p class="sub">the plan shows the impact before it lands</p>
+            <p class="sub">one command rebuilds an environment</p>
+            <p class="sub" style="color:var(--clean)">drift becomes detectable</p>
+          </div>
+        </div>
+      </div>
+      <p class="lede" style="max-width:none">The database becomes a <span class="amber">build output</span> — not a place things quietly accumulate.</p>
+    </div>
+    <div class="foot"><span class="mono">INFRASTRUCTURE AS CODE</span><span class="num mono"><b>05</b> / 15</span></div>
+  </section>
+
+  <!-- 6 ── FOLDER + MANIFEST ────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Project structure</p>
+    <div class="reveal row" style="align-items:stretch;gap:clamp(1.5rem,4vw,4rem)">
+      <div class="grow" style="display:flex;flex-direction:column;justify-content:center">
+        <h2>The layout is <span class="amber">fixed</span>, not a convention</h2>
+        <pre style="margin-top:.5rem"><b>manifest.yml</b>            <span class="dim">which account · what varies</span>
+<b>sources/</b>
+  <b>definitions/</b>          <span class="am">every object lives here</span>
+  macros/               <span class="dim">optional Jinja</span>
+out/                    <span class="dim">generated artifacts</span></pre>
+        <p class="sub" style="margin-top:1rem"><code>sources/definitions/</code> is required — files anywhere else are simply <strong>not read</strong>.</p>
+      </div>
+      <div class="grow" style="display:flex;flex-direction:column;justify-content:center">
+        <p class="tag" style="margin-bottom:.6rem">The manifest — where, and what varies</p>
+        <pre>targets:
+  DCM_DEV:
+    account_identifier: ORG-ACCOUNT
+    project_name: …PROJECTS.PBI_CAPACITIES
+
+templating:
+  configurations:
+    DEV:   { env_suffix: <span class="dim">""</span> }
+    PROD:  { env_suffix: <span class="am">"_PROD"</span> }</pre>
+        <p class="sub" style="margin-top:1rem">Promotion is pointing at a different target. <strong>You copy nothing.</strong></p>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">PROJECT STRUCTURE</span><span class="num mono"><b>06</b> / 15</span></div>
+  </section>
+
+  <!-- 7 ── ARCHITECTURE (hero) ──────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Architecture</p>
+    <div class="reveal stack">
+      <h2>How it fits together</h2>
+      <figure>
+        <svg viewBox="0 0 980 340" role="img" aria-label="GitHub feeds a Git Repository clone via FETCH; the clone feeds the DCM project, which PLANs (read-only) and DEPLOYs (write) against the database. A nightly task runs PLAN into a drift log and an email alert.">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6C7B88"/></marker>
+            <marker id="a2am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#B26B12"/></marker>
+          </defs>
+          <!-- top row -->
+          <g font-family="ui-monospace,monospace">
+            <rect x="10" y="30" width="150" height="72" fill="#36454F"/>
+            <text x="85" y="62" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">GitHub</text>
+            <text x="85" y="82" text-anchor="middle" font-size="11" fill="#B9C4CC">authoritative</text>
+
+            <rect x="230" y="30" width="170" height="72" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="315" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#25313A">GIT REPOSITORY</text>
+            <text x="315" y="78" text-anchor="middle" font-size="11" fill="#6C7B88">account-level clone</text>
+
+            <rect x="470" y="30" width="150" height="72" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="545" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#25313A">DCM PROJECT</text>
+            <text x="545" y="78" text-anchor="middle" font-size="11" fill="#6C7B88">history · artifacts</text>
+
+            <rect x="820" y="30" width="150" height="72" fill="#36454F"/>
+            <text x="895" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Database</text>
+            <text x="895" y="78" text-anchor="middle" font-size="11" fill="#B9C4CC">LND · STG · PRE</text>
+
+            <!-- edges top -->
+            <line x1="160" y1="66" x2="228" y2="66" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a2)"/>
+            <text x="194" y="55" text-anchor="middle" font-size="10" fill="#6C7B88">FETCH</text>
+            <line x1="400" y1="66" x2="468" y2="66" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a2)"/>
+
+            <!-- plan / deploy from project to db -->
+            <line x1="620" y1="54" x2="818" y2="54" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a2)"/>
+            <text x="712" y="44" text-anchor="middle" font-size="10" fill="#6C7B88">DEPLOY · writes</text>
+            <line x1="620" y1="82" x2="818" y2="82" stroke="#B26B12" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a2am)"/>
+            <text x="712" y="98" text-anchor="middle" font-size="10" fill="#B26B12">PLAN · reads, changes nothing</text>
+
+            <!-- nightly loop -->
+            <rect x="470" y="200" width="150" height="64" fill="#F6E9D6" stroke="#E3B173"/>
+            <text x="545" y="228" text-anchor="middle" font-size="12.5" font-weight="700" fill="#8A5210">Nightly task</text>
+            <text x="545" y="247" text-anchor="middle" font-size="10.5" fill="#8A5210">05:00 UTC · PLAN only</text>
+
+            <rect x="670" y="200" width="140" height="64" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="740" y="228" text-anchor="middle" font-size="12.5" font-weight="700" fill="#25313A">Drift log</text>
+            <text x="740" y="247" text-anchor="middle" font-size="10.5" fill="#6C7B88">durable record</text>
+
+            <rect x="850" y="200" width="120" height="64" fill="#36454F"/>
+            <text x="910" y="228" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Alert</text>
+            <text x="910" y="247" text-anchor="middle" font-size="10.5" fill="#B9C4CC">on drift</text>
+
+            <line x1="545" y1="102" x2="545" y2="198" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a2)"/>
+            <text x="600" y="155" text-anchor="middle" font-size="10" fill="#6C7B88">FETCH → PLAN</text>
+            <line x1="620" y1="232" x2="668" y2="232" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a2)"/>
+            <line x1="810" y1="232" x2="848" y2="232" stroke="#B26B12" stroke-width="1.5" marker-end="url(#a2am)"/>
+          </g>
+        </svg>
+        <figcaption><strong>PLAN is automated; DEPLOY is not.</strong> The amber path only reads — safe to run every night.
+          The solid path writes, and drops columns to do it, so a person runs it after reading a plan.</figcaption>
+      </figure>
+    </div>
+    <div class="foot"><span class="mono">ARCHITECTURE</span><span class="num mono"><b>07</b> / 15</span></div>
+  </section>
+
+  <!-- 8 ── THREE COPIES ─────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">The distinction people miss</p>
+    <div class="reveal row" style="gap:clamp(1.5rem,4vw,4rem);align-items:center">
+      <figure class="grow">
+        <svg viewBox="0 0 460 340" role="img" aria-label="GitHub sits above two independent copies: an account-level Git Repository updated by FETCH, and a per-user Workspace updated by the Pull button. The two are siblings, not parent and child.">
+          <defs><marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6C7B88"/></marker></defs>
+          <g font-family="ui-monospace,monospace">
+            <rect x="140" y="20" width="180" height="66" fill="#36454F"/>
+            <text x="230" y="48" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">GitHub</text>
+            <text x="230" y="68" text-anchor="middle" font-size="10.5" fill="#B9C4CC">authoritative</text>
+
+            <rect x="20" y="180" width="190" height="80" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="115" y="208" text-anchor="middle" font-size="12.5" font-weight="700" fill="#25313A">GIT REPOSITORY</text>
+            <text x="115" y="227" text-anchor="middle" font-size="10.5" fill="#6C7B88">account-level</text>
+            <text x="115" y="245" text-anchor="middle" font-size="10.5" fill="#6C7B88">read by the task</text>
+
+            <rect x="250" y="180" width="190" height="80" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="345" y="208" text-anchor="middle" font-size="12.5" font-weight="700" fill="#25313A">Workspace</text>
+            <text x="345" y="227" text-anchor="middle" font-size="10.5" fill="#6C7B88">per-user</text>
+            <text x="345" y="245" text-anchor="middle" font-size="10.5" fill="#B26B12">invisible to automation</text>
+
+            <line x1="200" y1="86" x2="130" y2="178" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a3)"/>
+            <text x="120" y="140" text-anchor="middle" font-size="10.5" fill="#6C7B88">FETCH</text>
+            <line x1="260" y1="86" x2="330" y2="178" stroke="#6C7B88" stroke-width="1.5" marker-end="url(#a3)"/>
+            <text x="340" y="140" text-anchor="middle" font-size="10.5" fill="#6C7B88">Pull</text>
+
+            <line x1="210" y1="220" x2="248" y2="220" stroke="#C2CAD1" stroke-width="1.2" stroke-dasharray="3 4"/>
+            <text x="230" y="300" text-anchor="middle" font-size="10.5" fill="#9AA8B3">siblings —</text>
+            <text x="230" y="316" text-anchor="middle" font-size="10.5" fill="#9AA8B3">not parent &amp; child</text>
+          </g>
+        </svg>
+      </figure>
+      <div class="stack grow" style="max-width:34ch">
+        <h2>Three copies.<br>All can be <span class="amber">stale.</span></h2>
+        <p class="sub">A <code>GIT REPOSITORY</code> is a snapshot, not a live link — push a commit and it knows nothing until <code>FETCH</code>.</p>
+        <p class="sub">A workspace lives in your personal database. <code>SHOW GIT REPOSITORIES</code> won't list it, and a scheduled task can't read it.</p>
+        <p class="sub"><strong>GitHub is authoritative. The other two are caches.</strong></p>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">THREE COPIES</span><span class="num mono"><b>08</b> / 15</span></div>
+  </section>
+
+  <!-- 9 ── ONE DIRECTION ────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Why drift detection must exist</p>
+    <div class="reveal stack">
+      <h2>A change travels <span class="amber">one direction only</span></h2>
+      <figure>
+        <svg viewBox="0 0 940 190" role="img" aria-label="A left-to-right chain: edit, commit, GitHub, fetch, plan, review, deploy, database. A dashed return arrow from database back to the repo is crossed out and labeled no path back.">
+          <defs><marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6C7B88"/></marker></defs>
+          <g font-family="ui-monospace,monospace" font-size="12.5">
+            <!-- chain -->
+            <g>
+              <rect x="8"   y="40" width="96" height="48" fill="#FFFFFF" stroke="#C2CAD1"/><text x="56"  y="69" text-anchor="middle" fill="#25313A">edit</text>
+              <rect x="124" y="40" width="96" height="48" fill="#FFFFFF" stroke="#C2CAD1"/><text x="172" y="69" text-anchor="middle" fill="#25313A">commit</text>
+              <rect x="240" y="40" width="96" height="48" fill="#36454F"/><text x="288" y="69" text-anchor="middle" fill="#fff">GitHub</text>
+              <rect x="356" y="40" width="96" height="48" fill="#FFFFFF" stroke="#C2CAD1"/><text x="404" y="69" text-anchor="middle" fill="#25313A">FETCH</text>
+              <rect x="472" y="40" width="96" height="48" fill="#FFFFFF" stroke="#C2CAD1"/><text x="520" y="69" text-anchor="middle" fill="#25313A">PLAN</text>
+              <rect x="588" y="40" width="96" height="48" fill="#FFFFFF" stroke="#C2CAD1"/><text x="636" y="69" text-anchor="middle" fill="#25313A">review</text>
+              <rect x="704" y="40" width="96" height="48" fill="#FFFFFF" stroke="#C2CAD1"/><text x="752" y="69" text-anchor="middle" fill="#25313A">DEPLOY</text>
+              <rect x="820" y="40" width="112" height="48" fill="#36454F"/><text x="876" y="69" text-anchor="middle" fill="#fff">database</text>
+            </g>
+            <g stroke="#6C7B88" stroke-width="1.4">
+              <line x1="104" y1="64" x2="122" y2="64" marker-end="url(#a4)"/>
+              <line x1="220" y1="64" x2="238" y2="64" marker-end="url(#a4)"/>
+              <line x1="336" y1="64" x2="354" y2="64" marker-end="url(#a4)"/>
+              <line x1="452" y1="64" x2="470" y2="64" marker-end="url(#a4)"/>
+              <line x1="568" y1="64" x2="586" y2="64" marker-end="url(#a4)"/>
+              <line x1="684" y1="64" x2="702" y2="64" marker-end="url(#a4)"/>
+              <line x1="800" y1="64" x2="818" y2="64" marker-end="url(#a4)"/>
+            </g>
+            <!-- broken return -->
+            <path d="M876 88 C 876 150, 288 150, 288 90" fill="none" stroke="#B26B12" stroke-width="1.5" stroke-dasharray="6 5"/>
+            <line x1="566" y1="132" x2="586" y2="152" stroke="#B26B12" stroke-width="2"/>
+            <line x1="586" y1="132" x2="566" y2="152" stroke="#B26B12" stroke-width="2"/>
+            <text x="576" y="176" text-anchor="middle" font-size="12" font-weight="700" fill="#B26B12">no path back</text>
+          </g>
+        </svg>
+        <figcaption>A hand-made <code>ALTER</code> never flows back into the repo. That asymmetry is exactly why the third question below has to be asked at all.</figcaption>
+      </figure>
+    </div>
+    <div class="foot"><span class="mono">ONE DIRECTION</span><span class="num mono"><b>09</b> / 15</span></div>
+  </section>
+
+  <!-- 10 ── THREE DIFFS (spine) ─────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">The spine of the whole idea</p>
+    <div class="reveal stack">
+      <h2>Three questions. Git answers two.</h2>
+      <div class="cards" style="max-width:70rem">
+        <div class="card" style="display:flex;align-items:center;gap:1.5rem">
+          <span class="stat" style="font-size:1.3rem;min-width:2.2rem">01</span>
+          <p class="lede grow" style="max-width:none;font-size:clamp(1rem,1.7vw,1.35rem)">What changed in the <strong>definition</strong>?</p>
+          <span class="pill" style="background:var(--panel);color:var(--ink-2)">git diff</span>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:1.5rem">
+          <span class="stat" style="font-size:1.3rem;min-width:2.2rem">02</span>
+          <p class="lede grow" style="max-width:none;font-size:clamp(1rem,1.7vw,1.35rem)">What will change in the <strong>database</strong>?</p>
+          <span class="pill" style="background:var(--panel);color:var(--ink-2)">DCM PLAN</span>
+        </div>
+        <div class="card hot" style="display:flex;align-items:center;gap:1.5rem">
+          <span class="stat" style="font-size:1.3rem;min-width:2.2rem">03</span>
+          <p class="lede grow" style="max-width:none;font-size:clamp(1rem,1.7vw,1.35rem)">What changed <strong>without going through either</strong>?</p>
+          <span class="pill p-drift">drift check</span>
+        </div>
+      </div>
+      <p class="lede" style="max-width:none">The third is the one we have <span class="amber">never been able to see.</span></p>
+    </div>
+    <div class="foot"><span class="mono">THREE DIFFS</span><span class="num mono"><b>10</b> / 15</span></div>
+  </section>
+
+  <!-- 11 ── VERDICTS ────────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Drift detection</p>
+    <div class="reveal row" style="gap:clamp(1.5rem,4vw,3.5rem);align-items:center">
+      <figure class="grow">
+        <svg viewBox="0 0 440 300" role="img" aria-label="Decision tree: did PLAN compile? If no, ERROR. If yes, is the changeset empty? Empty is CLEAN, non-empty is DRIFT.">
+          <defs><marker id="a5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6C7B88"/></marker></defs>
+          <g font-family="ui-monospace,monospace">
+            <rect x="130" y="16" width="180" height="46" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="220" y="44" text-anchor="middle" font-size="12.5" fill="#25313A">PLAN compiles?</text>
+
+            <rect x="300" y="120" width="130" height="52" fill="#F3E2DE" stroke="#8C3B2E"/>
+            <text x="365" y="143" text-anchor="middle" font-size="13" font-weight="700" fill="#8C3B2E">ERROR</text>
+            <text x="365" y="161" text-anchor="middle" font-size="9.5" fill="#8C3B2E">un-revertible</text>
+
+            <rect x="130" y="120" width="150" height="46" fill="#FFFFFF" stroke="#C2CAD1"/>
+            <text x="205" y="148" text-anchor="middle" font-size="12" fill="#25313A">changeset empty?</text>
+
+            <rect x="20" y="224" width="130" height="52" fill="#E7EDE8" stroke="#4B6650"/>
+            <text x="85" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#4B6650">CLEAN</text>
+            <text x="85" y="265" text-anchor="middle" font-size="9.5" fill="#4B6650">matches repo</text>
+
+            <rect x="180" y="224" width="130" height="52" fill="#F6E9D6" stroke="#B26B12"/>
+            <text x="245" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#B26B12">DRIFT</text>
+            <text x="245" y="265" text-anchor="middle" font-size="9.5" fill="#B26B12">names the column</text>
+
+            <g stroke="#6C7B88" stroke-width="1.4" fill="none">
+              <path d="M310 45 C 360 55, 365 90, 365 118" marker-end="url(#a5)"/>
+              <path d="M205 62 L205 118" marker-end="url(#a5)"/>
+              <path d="M180 166 C 130 190, 90 200, 85 222" marker-end="url(#a5)"/>
+              <path d="M230 166 C 245 190, 245 200, 245 222" marker-end="url(#a5)"/>
+            </g>
+            <text x="330" y="92" font-size="10" fill="#8C3B2E">no</text>
+            <text x="212" y="98" font-size="10" fill="#6C7B88">yes</text>
+            <text x="108" y="200" font-size="10" fill="#4B6650">empty</text>
+            <text x="256" y="200" font-size="10" fill="#B26B12">not</text>
+          </g>
+        </svg>
+      </figure>
+      <div class="stack grow" style="max-width:32ch">
+        <h2>Three verdicts,<br>not two</h2>
+        <p class="sub">A two-state monitor — “changeset empty or not” — reads the worst case as a broken job.</p>
+        <div class="card" style="border-left:3px solid var(--accent)">
+          <p class="sub" style="color:var(--ink-2)"><span class="stat" style="font-size:1.9rem">45</span> <span style="color:var(--faint)">of 53</span> columns are not the last column in their table.</p>
+          <p class="sub" style="margin-top:.5rem">Restoring one mid-list is a reorder Snowflake can't do — so <span class="pill p-error">ERROR</span> is the common case, not the edge.</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">VERDICTS</span><span class="num mono"><b>11</b> / 15</span></div>
+  </section>
+
+  <!-- 12 ── WHAT DRIFT RETURNS + AUDIT ──────────────────────── -->
+  <section class="slide">
+    <p class="kicker">What it returns · what Snowflake forgets</p>
+    <div class="reveal row" style="gap:clamp(1.5rem,4vw,4rem);align-items:stretch">
+      <div class="grow stack" style="justify-content:center">
+        <h2 style="margin-bottom:.6rem">It names the column</h2>
+        <pre><b>ALTER TABLE</b> …PRE.DIM_PBI_CAPACITIES
+  columns:
+    <span class="am">removed "HAND_ADDED_BY_A_HUMAN"</span>
+    <span class="am">        VARCHAR(100), nullable</span></pre>
+        <p class="sub">Not “a table differs.” The name, the type, and which way the fix runs — the difference between an alert worth waking for and one people mute.</p>
+      </div>
+      <div class="grow stack" style="justify-content:center">
+        <p class="tag" style="margin-bottom:.4rem">Measured — 7+ plans, 4 deploys</p>
+        <pre>SELECT PHASE, COUNT(*)
+  FROM DCM_DEPLOYMENT_HISTORY(…)
+
+  PHASE     N
+  <b>DEPLOY    4</b>   <span class="am">← no PLAN rows. none.</span></pre>
+        <p class="sub"><strong>The drift check is the one thing Snowflake doesn't record.</strong> Deployments keep 12-month artifacts; plans keep nothing, with no <code>ACCOUNT_USAGE</code> view — so we keep our own log. It answers <em>when did this drift start?</em></p>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">THE RECORD</span><span class="num mono"><b>12</b> / 15</span></div>
+  </section>
+
+  <!-- 13 ── FINDINGS ────────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">What we found by breaking it</p>
+    <div class="reveal stack">
+      <h2>Thirteen findings. Four from deliberate sabotage.</h2>
+      <table style="max-width:74rem">
+        <tbody>
+          <tr><td class="mono amber" style="width:3rem;font-weight:700">F5</td><td>Drift is detected and reported <strong>at column level</strong> — the verdict</td></tr>
+          <tr><td class="mono amber" style="font-weight:700">F6</td><td>DCM records <code>DEPLOY</code>, never <code>PLAN</code> — an audit table is mandatory</td></tr>
+          <tr><td class="mono amber" style="font-weight:700">F7</td><td>Dropping a column that is not last is <strong>un-revertible</strong></td></tr>
+          <tr><td class="mono amber" style="font-weight:700">F9</td><td>Our own monitor sat suspended while its health view reported <span class="pill p-clean">OK</span></td></tr>
+          <tr><td class="mono amber" style="font-weight:700">F11</td><td>Has now run unattended <strong>two consecutive nights</strong>, ~30s per run</td></tr>
+        </tbody>
+      </table>
+      <p class="lede" style="max-width:none">Every failure we found was something <span class="amber">reporting success without checking</span> what it claimed to check.</p>
+    </div>
+    <div class="foot"><span class="mono">FINDINGS</span><span class="num mono"><b>13</b> / 15</span></div>
+  </section>
+
+  <!-- 14 ── DEMO ────────────────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Live · end to end · ~20 min</p>
+    <div class="reveal stack">
+      <h2>What we'll demo</h2>
+      <div class="cards" style="grid-template-columns:repeat(2,1fr);max-width:76rem;gap:.7rem 2rem">
+        <div style="display:flex;gap:1rem;padding:.5rem 0"><span class="mono" style="color:var(--faint);font-weight:700">1</span><p class="sub"><code>CREATE TABLE IF NOT EXISTS</code> succeeding against a table it never looked at</p></div>
+        <div style="display:flex;gap:1rem;padding:.5rem 0"><span class="mono" style="color:var(--faint);font-weight:700">5</span><p class="sub">Add a table, push, fetch, deploy — a change travelling through git</p></div>
+        <div style="display:flex;gap:1rem;padding:.5rem 0"><span class="mono" style="color:var(--faint);font-weight:700">2</span><p class="sub">Build a project from nothing — scaffold, definitions, plan, deploy</p></div>
+        <div style="display:flex;gap:1rem;padding:.5rem 0;background:var(--accent-soft)"><span class="mono amber" style="font-weight:700">6</span><p class="sub" style="color:var(--ink-2)"><strong>Tamper by hand — GitHub shows nothing, the drift check names it</strong></p></div>
+        <div style="display:flex;gap:1rem;padding:.5rem 0"><span class="mono" style="color:var(--faint);font-weight:700">3</span><p class="sub">Push to git — the repo fills up</p></div>
+        <div style="display:flex;gap:1rem;padding:.5rem 0"><span class="mono" style="color:var(--faint);font-weight:700">7</span><p class="sub">The un-revertible case, and why it changes the design</p></div>
+        <div style="display:flex;gap:1rem;padding:.5rem 0"><span class="mono" style="color:var(--faint);font-weight:700">4</span><p class="sub">Snowflake pulls its own copy; the plan agrees from both directions</p></div>
+        <div></div>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">THE DEMO</span><span class="num mono"><b>14</b> / 15</span></div>
+  </section>
+
+  <!-- 15 ── CLOSE / LIMITS ──────────────────────────────────── -->
+  <section class="slide">
+    <p class="kicker">Honest limits</p>
+    <div class="reveal row" style="gap:clamp(1.5rem,4vw,4rem);align-items:stretch">
+      <div class="grow stack">
+        <h2>What it does<br>not yet prove</h2>
+        <div class="stack" style="gap:.55rem">
+          <p class="sub">One slice — 8 tables, 53 columns, <strong>no data</strong></p>
+          <p class="sub">Untested at full-estate scale (52 tables)</p>
+          <p class="sub">DCM Projects is a <strong>preview</strong> feature</p>
+          <p class="sub">Grants, tasks, streams unproven</p>
+          <p class="sub"><code>ERROR</code> recovery rehearsed only on empty tables</p>
+        </div>
+      </div>
+      <div class="grow stack" style="justify-content:center;border-left:1px solid var(--line);padding-left:clamp(1.5rem,4vw,4rem)">
+        <p class="lede" style="max-width:none">The database can now tell us <span class="amber">every morning</span> whether it still matches the repo —</p>
+        <p class="lede" style="max-width:none">and name the column when it doesn't.</p>
+        <p class="sub" style="margin-top:1rem;color:var(--faint)">Scheduled <code>PLAN</code> first — it's read-only. <code>DEPLOY</code> stays a human decision.</p>
+      </div>
+    </div>
+    <div class="foot"><span class="mono">SCHEMA DRIFT, CAUGHT</span><span class="num mono"><b>15</b> / 15</span></div>
+  </section>
+
+</div>
+
+<div class="hint" id="hint">← / →  or  scroll  ·  F for fullscreen</div>
+
+<script>
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0;
+  function go(n){ i = Math.max(0, Math.min(slides.length-1, n)); slides[i].scrollIntoView({behavior:'smooth', inline:'center'}); }
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); go(i+1); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
+    else if(e.key==='Home'){ e.preventDefault(); go(0); }
+    else if(e.key==='End'){ e.preventDefault(); go(slides.length-1); }
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement){ document.documentElement.requestFullscreen(); } else { document.exitFullscreen(); } }
+  });
+  // keep i in sync when the user scrolls/swipes
+  var t;
+  deck.addEventListener('scroll', function(){
+    clearTimeout(t);
+    t = setTimeout(function(){ i = Math.round(deck.scrollLeft / window.innerWidth); }, 90);
+  }, {passive:true});
+</script>
