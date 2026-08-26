@@ -29,6 +29,28 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 
 ---
 
+## The sequence, on one screen
+
+```
+0.  Repo with a README              ← no commits = no main branch = nothing to connect to
+1.  Workspaces → From Git repository   ← git connection happens HERE or never
+2.  + Add new → DCM Project            ← scaffold inside that workspace
+3.  Author definitions — HOLD ONE PRE TABLE BACK
+4.  Plan → Create → Deploy → verify     § 2
+5.  Changes → commit → Push             § 3   GitHub fills up
+6.  CREATE GIT REPOSITORY + FETCH       § 4   the account's own copy
+7.  Plan from the git path → NO CHANGES  § 4   same truth, two directions
+8.  Add the held-back table             § 5
+9.  Commit → Push → see the diff        § 5-6
+10. FETCH → Plan → one new table → Deploy § 7
+11. Tamper by hand → drift check         § 8   ← the reveal
+```
+
+> **Steps 0 and 1 are the ones that cannot be reordered.** A workspace can only be connected to
+> git *at creation*. Author first and there is no way to push — you start again.
+
+---
+
 ## Contents
 
 | | Section | Min | |
@@ -38,8 +60,8 @@ Put this on a slide, or draw it. Everything below is an instance of it.
 | 2 | [Build it in Snowflake](#2--build-it-in-snowflake) | 8 | ⏩ |
 | 3 | [**Push the first commit**](#3--push-the-first-commit) | 4 | ⏩ |
 | 4 | [**The copy a machine can read**](#4--the-copy-a-machine-can-read) | 5 | ⏩ |
-| 5 | [Develop on a branch](#5--develop-on-a-branch) | 4 | |
-| 6 | [**Diff one — what the code changed**](#6--diff-one--what-the-code-changed) | 3 | ⏩ |
+| 5 | [Add the missing table](#5--add-the-missing-table) | 3 | ⏩ |
+| 6 | [**Diff one — what the code changed**](#6--diff-one-what-the-code-changed) | 3 | ⏩ |
 | 7 | [**Diff two — what the database will do**](#7--diff-two--what-the-database-will-do) | 4 | ⏩ |
 | 8 | [**Diff three — the reveal**](#8--diff-three--the-reveal) | 5 | ⏩ |
 | 9 | [Put it back](#9--put-it-back) | 2 | ⏩ |
@@ -101,7 +123,7 @@ Naming them on creation avoids the muddle of two identical-looking workspaces on
 - [ ] Account switcher reads **`LV16268`**
 - [ ] Warehouse resumed
 - [ ] GitHub token to hand — the workspace will ask when you first push
-- [ ] Know how to switch branches in the workspace **before** you're on stage
+- [ ] Find the **Changes** tab in the workspace before you're on stage — commit and push live there
 
 ---
 
@@ -224,7 +246,11 @@ That forward reference sets up §11. Don't explain it further here.
 **If `sources/definitions/` is empty** — you deleted the examples, which is right — the Output
 pane reads `Files: 0, Errors: 0`. That is not an error. It has nothing to analyse yet.
 
-Create `sources/definitions/10_capacities.sql`:
+Create `sources/definitions/10_capacities.sql`.
+
+> **Deliberately incomplete.** Two tables now; a third is held back for §5. Building
+> everything at once only ever shows creation — holding one back is what lets the audience see
+> a *change* travel through git later, which is the harder and more useful thing to demonstrate.
 
 ```sql
 DEFINE DATABASE DEMO_PBI
@@ -383,53 +409,59 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
 
 ---
 
-## 5 — Develop on a branch
+## 5 — Add the missing table
 
-In the workspace: **Changes** tab → repository dropdown → **+ New** → name it
-**`add-region-view`**.
+> **Say:** "A real change now, not a new build. The presentation layer needs a fact table that
+> nobody wrote yesterday."
 
-> **Say:** "Nobody edits main directly. Same discipline as application code."
-
-Add to `sources/definitions/10_capacities.sql`:
+In the workspace, append to `sources/definitions/10_capacities.sql`:
 
 ```sql
-DEFINE VIEW DEMO_PBI.PRE.V_CAPACITY_BY_REGION AS
-    SELECT REGION,
-           COUNT(*)                    AS CAPACITY_COUNT,
-           COUNT_IF(STATE = 'Active')  AS ACTIVE_COUNT
-    FROM   DEMO_PBI.PRE.DIM_PBI_CAPACITIES
-    WHERE  IS_CURRENT_FLAG = 1
-    GROUP  BY REGION;
+DEFINE TABLE DEMO_PBI.PRE.FACT_PBI_CAPACITY_OBSERVATION (
+    OBSERVED_DATE     DATE          NOT NULL,
+    CAPACITY_ID       VARCHAR(36)   NOT NULL,
+    SKU               VARCHAR(50),
+    STATE             VARCHAR(50),
+    REGION            VARCHAR(200),
+    ADMIN_COUNT       NUMBER(38,0),
+    INSERT_AUDIT_KEY  NUMBER(38,0),
+    INSERT_DATE       TIMESTAMP_NTZ(9)
+);
 ```
 
-**Changes** tab → commit message `Add region summary view` → **Push**.
+**Changes** tab → message `Add capacity observation fact table` → **Push**.
+
+> **Say:** "Straight to `main`, no review — this is a demo. I'll come back to where approval
+> would go."
 
 ---
 
 ## 6 — Diff one: what the code changed
 
-**GitHub tab.** Open the branch, click **Compare / Open pull request**.
+**GitHub tab.** Open the commit you just pushed.
 
-> **Say:** "This is the diff every engineer already knows. Green lines, red lines, a reviewer,
-> an approval. Nothing about it is Snowflake-specific — which is the point. Schema changes now
-> arrive the same way application changes do."
+> **Say:** "This is the diff every engineer already knows. Green lines, a message, an author, a
+> timestamp. Nothing about it is Snowflake-specific — which is the point. Schema changes now
+> arrive the way application changes do, and they're reviewable by anyone who can read SQL."
 
-Leave the PR open on screen.
+> **Say, and this answers the question you'll get anyway:** "There's no approval gate here. I
+> pushed straight to `main`. If you want review, it goes in exactly the place you'd expect —
+> branch protection and a pull request on this repo. DCM doesn't provide that and doesn't need
+> to; it's ordinary git."
 
-> **Say:** "But notice what this diff does *not* tell you. It says I added twelve lines of SQL.
-> It does not tell you what will happen to the database when that lands. Those are different
-> questions."
+Then set up the next section:
+
+> **Say:** "But notice what this diff does *not* tell you. It says I added nine lines of SQL. It
+> does not tell you what happens to the database when that lands. Different question."
 
 ---
 
 ## 7 — Diff two: what the database will do
 
-Merge the PR on GitHub. **Then back to Snowsight — do this in the UI first:**
+**In the workspace first:** **Changes** tab → **Pull**. (You just pushed, so nothing arrives —
+worth saying out loud, because the *next* pull is the one that matters.)
 
-In the workspace: switch the branch selector to **`main`**, click **Pull**. The merged view
-definition appears. Click **Plan**.
-
-Then the same thing from the account-level clone, so they see both stay in step:
+**Then the account's copy**, which is the path a scheduled job uses:
 
 ```sql
 ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
@@ -438,27 +470,28 @@ EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
     PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
 ```
 
-> **Say:** "Two pulls, because there are two copies — mine and the account's. The button
-> updated my workspace. `FETCH` updated the one the nightly job reads. Miss the second and the
-> 5am check is still looking at yesterday's repo."
+**Expect: 1 entity to create — `FACT_PBI_CAPACITY_OBSERVATION`.**
 
-**Expect: 1 entity to create — the view.**
+> **Say:** "Nine lines of SQL in git became exactly one change to the database: create one
+> table. That's the second diff. Both are visible before anything happens — what was written,
+> and what it will do."
 
-> **Say:** "Twelve lines of SQL in git became exactly one change to the database: create one
-> view. That's the second diff. A reviewer can see both — what was written, and what it will
-> do — before anything happens."
-
-Deploy it, then confirm:
+Deploy it, and confirm:
 
 ```sql
-SELECT * FROM DEMO_PBI.PRE.V_CAPACITY_BY_REGION;
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+    DEPLOY AS "add_fact" FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
+FROM   DEMO_PBI.INFORMATION_SCHEMA.COLUMNS
+WHERE  TABLE_SCHEMA IN ('LND','PRE')
+GROUP  BY 1,2 ORDER BY 1,2;                    -- now 3 tables
 ```
 
-> **Note if `FETCH` slips your mind:** the clone doesn't update on its own. That's why the
-> nightly job fetches before every plan — otherwise it compares the database to a stale copy of
-> the repo and calls the difference drift.
+> **Two copies, two updates.** The **Pull** button updated mine. `FETCH` updated the account's.
+> Miss the second and the 5am check is still reading yesterday's repo.
 
-**The round trip is now complete: Snowflake → git → Snowflake → git → Snowflake.**
+**The round trip is complete: Snowflake → git → Snowflake.**
 
 ---
 
@@ -653,7 +686,7 @@ Show the alert email, and — if you're willing, it lands well:
 | `LS @...DEMO_REPO/...` empty | Clone stale, or pushed to a branch | `ALTER GIT REPOSITORY ... FETCH;` and check the branch |
 | Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
 | *From Git repository* won't create | API integration or credential not selectable | Skip 4a, do 4b in SQL, and say the UI is a convenience over the same objects |
-| Workspace shows an old branch | Branch selector still on the previous one | Switch it, then **Pull** — worth narrating, it is the same mistake as forgetting `FETCH` |
+| Workspace and account clone disagree | One was updated, the other wasn't | **Pull** in the workspace, `FETCH` for the clone. Narrate it — it is the same mistake twice |
 | **No Changes tab / no way to push** | Workspace was created without git — **cannot be fixed** | Create a new workspace *From Git repository*, re-create the two files there. Rehearse §2 so this never happens live |
 | Workspace creation fails on the repo | Repo has no commits, so no `main` branch | Add a README on GitHub, retry |
 | Loose `.sql` files in the tree | Earlier experiments outside the project folder | Delete them before demoing — DCM only reads `sources/definitions/`, but a cluttered tree is hard to narrate |
@@ -675,6 +708,8 @@ log, move on. A failed step becomes a demonstration of the audit trail.
 | Question | Answer |
 |---|---|
 | "Why not just use git hooks / CI?" | You can, and Snowflake publishes GitHub Actions for it — plan on PR, deploy on merge. But CI only sees changes that go *through* CI. Drift is the case that doesn't. |
+| "Where's the approval step?" | Not in this demo — I pushed straight to `main`. Add it with branch protection and pull requests; it's ordinary git. The gate that *is* here is that `DEPLOY` is manual: someone reads a plan and decides. |
+| "Could you show a view instead of a table?" | Yes — and drift on a view reports the before/after `SELECT`, which is richer than a column list. Same reorder limitation as tables though. |
 | "Why not Terraform?" | Terraform suits account-level objects and keeps an external state file. DCM is native and stateless. Common practice is both. |
 | "Does this replace Matillion?" | No. Matillion moves data; this manages the shape of the tables it lands in. |
 | "Can it roll back?" | Not as a command — revert the commit and deploy. Git *is* the rollback mechanism. |
