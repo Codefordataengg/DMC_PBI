@@ -18,7 +18,7 @@ flowchart LR
         A2 -->|No| A3[Create it ✅]
         A2 -->|Yes| A4["Do nothing<br/>never looks inside"]
         A4 --> A5["Someone added a column<br/>by hand in March"]
-        A5 --> A6["Pipeline still green<br/>every night, forever"]V
+        A5 --> A6["Pipeline still green<br/>every night, forever"]
     end
     style A4 fill:#7f1d1d,color:#fff
     style A6 fill:#7f1d1d,color:#fff
@@ -35,49 +35,65 @@ Closing (2) is the whole point. Everything below exists to serve it.
 
 ---
 
-## 2. What was built
+## 2. The architecture
 
 ```mermaid
 flowchart TB
-    subgraph src["SOURCE OF TRUTH"]
-        G["GitHub<br/>Codefordataengg/DMC_PBI"]
-    end
+    G["<b>GitHub</b> · source of truth<br/>Codefordataengg/DMC_PBI"]
+    W["<b>Workspace</b> · per-user<br/>author + Deploy DEV"]
 
-    subgraph sf["SNOWFLAKE — personal account LV16268"]
-        subgraph admin["DCM_ADMIN"]
-            R["GIT REPOSITORY<br/>PBI_REPO → main"]
-            P["DCM PROJECT<br/>PBI_CAPACITIES"]
-            subgraph aud["AUDIT schema"]
-                L[("CTL_DCM_DRIFT_LOG<br/><i>append-only</i>")]
-                V["V_DCM_DRIFT_COLUMNS<br/>V_DCM_MONITOR_HEALTH"]
-                SP["SP_DCM_DRIFT_CHECK_AND_ALERT"]
-                T["TASK — 05:00 UTC daily"]
-            end
-        end
-        subgraph dev["DEVELOP — the managed estate"]
-            D["LND · STG · PRE<br/>8 tables, 53 columns"]
+    subgraph sf["SNOWFLAKE — one account · env_suffix separates DEV / PROD"]
+        R["GIT REPOSITORY<br/>clone → main"]
+        P["DCM PROJECT"]
+        DEV["<b>DEV database</b><br/>…_DEV · fast, from the workspace"]
+        PROD["<b>PROD database</b><br/>…_PROD · from git, reviewed"]
+        EX["expectations<br/><i>snow dcm test</i>"]
+        subgraph aud["AUDIT schema — the drift monitor"]
+            T["TASK · 05:00 UTC"]
+            SP["SP_DCM_DRIFT_CHECK_AND_ALERT"]
+            L[("CTL_DCM_DRIFT_LOG<br/><i>append-only</i>")]
+            V["V_DCM_MONITOR_HEALTH"]
         end
     end
+    M(["📧 alert · DRIFT or ERROR"])
 
-    M(["📧 email alert"])
-
-    G -->|"ALTER ... FETCH<br/>before every PLAN"| R
-    R -->|"definitions"| P
-    P -->|PLAN — read only| SP
-    P -->|"DEPLOY — human only"| D
+    W -->|"Deploy · DEV · fast, no gate"| DEV
+    W -->|"commit + push"| G
+    G -->|"ALTER … FETCH<br/>before every PLAN"| R
+    R -->|definitions| P
+    P -->|"DEPLOY USING CONFIGURATION PROD<br/>human · from git, never the workspace"| PROD
     T --> SP
-    SP -->|"always writes first"| L
-    L --> V
-    SP -.->|"only if DRIFT or ERROR"| M
-    D -.->|"compared against"| SP
+    SP -->|"nightly PLAN vs git · read only"| PROD
+    PROD -.->|"compared against"| SP
+    SP -->|"writes first"| L --> V
+    SP -.->|"only if not CLEAN"| M
+    PROD -.->|"data-quality gate"| EX
 
-    style D fill:#1e3a5f,color:#fff
+    style DEV fill:#1e3a5f,color:#fff
+    style PROD fill:#7a4310,color:#fff
     style L fill:#14532d,color:#fff
-    style M fill:#78350f,color:#fff
+    style M fill:#7a4310,color:#fff
+    style EX fill:#2b2b2b,color:#fff
 ```
 
-**The one asymmetry that matters:** `PLAN` is automated, `DEPLOY` is not. `PLAN` only reads.
-`DEPLOY` reverts drift by dropping columns and destroying their data ([F3](../FINDINGS.md)).
+**Read it as three flows.** *Dev* — the engineer authors in the workspace and deploys to the DEV
+database straight from it, fast, no gate. *Prod* — the same definitions travel through GitHub, are
+pulled into the account-level `GIT REPOSITORY`, and are deployed to the PROD database **from git**
+with `USING CONFIGURATION PROD` — a human decision, never from a personal workspace. *Monitor* — a
+nightly task plans PROD against git (read-only), writes every result to an append-only log, and
+emails only when the verdict is not `CLEAN`.
+
+**Two asymmetries that matter:**
+- `PLAN` is automated; `DEPLOY` is not. `PLAN` only reads. `DEPLOY` reverts drift by dropping
+  columns and destroying their data ([F3](../FINDINGS.md)).
+- Prod is deployed *from git*, so git and prod agree by construction — which is what lets the
+  nightly check treat any divergence as a real signal rather than a deploy nobody logged.
+
+**What was proven vs. demonstrated.** The monitor (task → check → log → alert) was built and has run
+unattended ([F11](../FINDINGS.md)); the single-estate POC proved every verdict. The dev/prod
+promotion is shown end-to-end in the demo, and expectations (`snow dcm test`) are validated in a
+spike ([F15](../FINDINGS.md)). Same account here for the demo; real estates often split DEV and PROD
+across separate accounts (a target each).
 
 ---
 
