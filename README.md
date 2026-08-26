@@ -72,6 +72,8 @@ already offer, and the POC has answered its question in the negative. That is a 
 
 | File | |
 |---|---|
+| `00_BOOTSTRAP.md` | **Start here to rebuild from nothing.** The run order, which is not obvious from the filenames — `12_GIT_INTEGRATION.sql` runs in two halves with `10` and `11` in between. |
+| `evidence/` | Exported drift log, deployment and task history. Evidence for F5, F7, F9, F11 — destroyed by teardown, so exported first. |
 | `01_CAPTURE_TARGET_STATE.sql` | **Run in `DEVELOP`, not the POC account.** Read-only `GET_DDL` for the capacities slice. |
 | `target-state/GET_DDL_2026-08-22.txt` | The captured output, verbatim. **Evidence — do not edit.** Precedence rank 1: if the `DEFINE` files disagree with this, this wins. |
 | `02_VERIFY_DCM_AVAILABLE.sql` | The availability gate. Run in the POC account. **Passed 2026-08-22.** |
