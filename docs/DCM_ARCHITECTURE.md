@@ -81,7 +81,69 @@ flowchart TB
 
 ---
 
-## 3. The three verdicts
+## 3. Three copies of the same files
+
+**The most common misunderstanding in this design.** The definitions exist in three places at
+once. All three can be stale, independently, and nothing warns you.
+
+```mermaid
+flowchart TB
+    G["<b>GitHub</b><br/>Codefordataengg/DMC_PBI<br/><i>authoritative</i>"]
+
+    subgraph sf["Inside Snowflake"]
+        R["<b>GIT REPOSITORY</b><br/>DCM_ADMIN.PROJECTS.PBI_REPO<br/><i>account-level</i>"]
+        W["<b>Workspace</b><br/>USER$.PUBLIC…<br/><i>per-user</i>"]
+    end
+
+    T["Nightly task<br/>05:00 UTC"]
+    H["A person<br/>with a browser"]
+
+    G -->|"ALTER … FETCH"| R
+    G -->|"Pull button"| W
+    W -->|"Commit + Push"| G
+    R --> T
+    W --> H
+
+    style G fill:#1e3a5f,color:#fff
+    style R fill:#14532d,color:#fff
+    style W fill:#78350f,color:#fff
+```
+
+| | Lives in | Updated by | Read by | Survives you leaving |
+|---|---|---|---|---|
+| **GitHub repo** | github.com | your push | everyone | yes |
+| **`GIT REPOSITORY`** | `DCM_ADMIN.PROJECTS` | `ALTER … FETCH` | `PLAN`, `DEPLOY`, the task | yes |
+| **Workspace** | your `USER$` database | **Pull** button | you, in the editor | **no** |
+
+### Three consequences that actually bite
+
+**1. A `GIT REPOSITORY` is a snapshot, not a live link.** Push a commit and it knows nothing
+until someone runs `FETCH`. This is why `SP_DCM_DRIFT_CHECK_FROM_GIT` fetches *before* planning
+— otherwise the nightly check compares the database against last week's repo and reports the
+difference as drift.
+
+**2. The workspace and the repository object are siblings, not parent and child.** Pushing from
+the workspace does not update `PBI_REPO`. Fetching `PBI_REPO` does not update the workspace.
+Update one and the other is silently behind.
+
+**3. A workspace is invisible to automation.** One statement proves it:
+
+```sql
+SHOW GIT REPOSITORIES IN ACCOUNT;      -- a git-connected workspace is NOT listed
+```
+
+It lives in a per-user database, and a scheduled task has no user session. This is why creating
+a workspace *From Git repository* does **not** remove the need for `CREATE GIT REPOSITORY` —
+and why that step has no UI path at all.
+
+### Which one is authoritative
+
+**GitHub.** The other two are caches. When they disagree, git wins, and the fix is always to
+sync the copy — never to edit it in place.
+
+---
+
+## 4. The three verdicts
 
 A two-state monitor — "changeset empty or not" — is **wrong for the majority of real
 incidents**. [F7](../FINDINGS.md) proved why.
@@ -119,7 +181,7 @@ flowchart TD
 
 ---
 
-## 4. Why an audit table exists at all
+## 5. Why an audit table exists at all
 
 DCM stores an immutable artifact snapshot for every **deployment** and calls it the canonical
 audit trail. It is — for deployments. [F6](../FINDINGS.md) measured what happens to plans:
@@ -146,7 +208,7 @@ That last question is the one the dashboard-freeze incident turned on.
 
 ---
 
-## 5. Failure modes designed for
+## 6. Failure modes designed for
 
 Each row is a way the monitor could quietly stop being a monitor.
 
@@ -164,7 +226,7 @@ Each row is a way the monitor could quietly stop being a monitor.
 
 ---
 
-## 6. Deployment flow, once git is wired
+## 7. Deployment flow, once git is wired
 
 ```mermaid
 sequenceDiagram
@@ -196,7 +258,7 @@ sequenceDiagram
 
 ---
 
-## 7. Files
+## 8. Files
 
 | File | Purpose |
 |---|---|
@@ -216,7 +278,7 @@ sequenceDiagram
 
 ---
 
-## 8. Findings index
+## 9. Findings index
 
 | | Finding | Impact |
 |---|---|---|
@@ -234,7 +296,7 @@ sequenceDiagram
 
 ---
 
-## 9. Honest limits
+## 10. Honest limits
 
 - One slice: 8 tables, 53 columns, **no data**. Behaviour at 64 tables is untested.
 - Tables, schemas and databases only. Views, tasks, streams and grants unproven.

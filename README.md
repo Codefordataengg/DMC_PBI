@@ -84,7 +84,7 @@ already offer, and the POC has answered its question in the negative. That is a 
 | `10_AUDIT_AND_MONITOR.sql` | Drift log, column-grain views, check procedure. **Does not define the task.** |
 | `11_ALERTING.sql` | Email integration, alert body, health view. **Does not define the task.** |
 | `12_GIT_INTEGRATION.sql` | Secret, API integration, git clone, git-sourced procedure — and **the only definition of `TASK_DCM_DRIFT_CHECK`**. |
-| `docs/DCM_ARCHITECTURE.md` | Diagrams, verdict decision tree, failure modes, findings index. |
+| `docs/DCM_ARCHITECTURE.md` | Diagrams, the **three copies of the definitions** (§3), verdict decision tree, failure modes, findings index. |
 | `target-state/` | The `GET_DDL` capture, verbatim. Evidence — never edit. |
 | `90_INDUCE_DRIFT.sql` | Step 4. The hand edits the POC is judged on. |
 | `FINDINGS.md` | Dated results. Write to it as you go. |
