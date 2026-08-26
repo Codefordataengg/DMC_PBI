@@ -236,10 +236,10 @@ codebox(s,Mx+6.1,3.05,CW-6.1,[
  [("    project_name: …PBI_CAPACITIES",INK2,False)],
  [("templating:",INK2,False)],
  [("  configurations:",INK2,False)],
- [('    DEV:  { env_suffix: "" }',INK2,False)],
+ [('    DEV:  { env_suffix: ',INK2,False),('"_DEV"',AMBER,True),(' }',INK2,False)],
  [('    PROD: { env_suffix: ',INK2,False),('"_PROD"',AMBER,True),(' }',INK2,False)],
 ],size=12)
-txt(s,Mx+6.1,5.55,CW-6.1,0.6,[[("Promotion is pointing at a different target. ",13,MUTE,False,SANS),("You copy nothing.",13,INK,True,SANS)]],leading=1.3)
+txt(s,Mx+6.1,5.85,CW-6.1,0.6,[[("Promotion is pointing at a different target. ",13,MUTE,False,SANS),("You copy nothing.",13,INK,True,SANS)]],leading=1.3)
 foot(s,"project structure",6)
 
 # ── 7 ARCHITECTURE ───────────────────────────────────────
@@ -440,7 +440,7 @@ codebox(s,Mx,2.75,6.5,[
  [("  TO TABLE",INK,True),(" DEVELOP.PRE.DIM_PBI_CAPACITIES ",INK2,False),("ON",INK,True),(" (ID)",INK2,False)],
  [("  EXPECTATION",INK,True),(" unique_ids ( ",INK2,False),("VALUE = 0",AMBER,True),(" );",INK2,False)],
 ],size=11)
-txt(s,Mx,5.15,6.5,0.7,[[("The left side is always the keyword ",12.5,MUTE,False,SANS),("VALUE",11,INK2,False,MONO),(". No subqueries, casts or arithmetic — a check, not a query.",12.5,MUTE,False,SANS)]],leading=1.35)
+txt(s,Mx,5.55,6.5,0.7,[[("The left side is always the keyword ",12.5,MUTE,False,SANS),("VALUE",11,INK2,False,MONO),(". No subqueries, casts or arithmetic — a check, not a query.",12.5,MUTE,False,SANS)]],leading=1.35)
 txt(s,Mx+6.95,2.7,CW-6.95,0.3,[[("ONE COMMAND RUNS THEM ALL",10.5,FAINT,True,MONO)]])
 codebox(s,Mx+6.95,3.05,CW-6.95,[
  [("$ snow dcm test PBI_CAPACITIES",INK2,False)],
