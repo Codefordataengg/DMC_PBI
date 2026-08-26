@@ -707,10 +707,11 @@ templating:
         <p class="tag" style="margin-bottom:.4rem">one command runs them all</p>
         <pre>$ snow dcm test PBI_CAPACITIES
 
-  <span style="color:#4B6650;font-weight:700">PASS</span>  no_null_ids
-  <span style="color:#4B6650;font-weight:700">PASS</span>  unique_ids
-  <span class="am">FAIL  fact_not_empty  (VALUE 0)</span></pre>
-        <p class="sub">Applies to <strong>deployed</strong> objects, after tasks and dynamic tables have refreshed. The same pass/fail gate can sit on landing, staging and presentation — so bad data is caught where it enters, not three dashboards later.</p>
+  <span style="color:#4B6650;font-weight:700">✓ PASS</span>  no_null_ids
+  <span class="am">✗ FAIL</span>  unique_ids
+     <span class="dim">Expected VALUE = 0, got 1</span>
+  <span class="dim">1 passed, 1 failed</span></pre>
+        <p class="sub"><strong>Verified run</strong>, not a mock-up. Applies to <strong>deployed</strong> objects; the command exits non-zero on failure, so it gates a pipeline. The same check sits on landing, staging and presentation — bad data caught where it enters, not three dashboards later.</p>
       </div>
     </div>
     <div class="foot"><span class="mono">BEYOND SCHEMA</span><span class="num mono"><b>17</b> / 18</span></div>

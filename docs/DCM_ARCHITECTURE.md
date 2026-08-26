@@ -279,7 +279,7 @@ target per account.
 | [`../11_ALERTING.sql`](../11_ALERTING.sql) | Email integration, alert body, health view |
 | [`../12_GIT_INTEGRATION.sql`](../12_GIT_INTEGRATION.sql) | Secret, API integration, git clone, git-sourced task |
 | [`../90_INDUCE_DRIFT.sql`](../90_INDUCE_DRIFT.sql) | Deliberate drift for testing |
-| [`../FINDINGS.md`](../FINDINGS.md) | **F1–F13.** Dated, evidenced results |
+| [`../FINDINGS.md`](../FINDINGS.md) | **F1–F15.** Dated, evidenced results |
 | [`../DEMO_RUNSHEET.md`](../DEMO_RUNSHEET.md) | Live demo script — DCM and git, the full round trip |
 
 ---
@@ -301,6 +301,8 @@ target per account.
 | F11 | Ran unattended two consecutive nights, ~30s per run | The schedule is proven, not asserted |
 | F12 | `IF NOT EXISTS` says "already exists, statement succeeded" | It is honest; the defect is that doing nothing reads as success |
 | F13 | The count was 70, not 64; the dashboard freeze was a different defect | Audit every quoted figure, including our own |
+| F14 | DCM went GA 2026-08-07; expectations exist and were never used | Correct 'preview' everywhere; explore data-quality gates |
+| F15 | Expectations work end-to-end on Standard; F6 still holds at GA | Deck examples now backed by a real `snow dcm test` run |
 
 ---
 

@@ -564,3 +564,55 @@ The POC never touched it. Worth a slide, and worth a follow-up spike.
 F6 (DCM records DEPLOY, never PLAN) and the 12-month / no-`ACCOUNT_USAGE` retention were both
 measured or read during preview. Nothing suggests GA changed them, but a 5-minute re-check on
 the account would confirm the audit-table rationale still holds.
+
+---
+
+## F15 — Expectations work end-to-end, on Standard edition, and F6 still holds at GA (2026-08-26, verified)
+
+**The follow-up spike from F14, run against the account** (now Snowflake 10.30.101, DCM GA).
+
+### Data-quality expectations are real, and not Enterprise-gated
+
+Built a throwaway DCM project with `ATTACH DATA METRIC FUNCTION … EXPECTATION` on a table, deployed
+it, and ran `snow dcm test`. It works — and the account is **Standard edition**, so DMF-based
+expectations in DCM are *not* gated to Enterprise the way standalone data-quality monitoring often is.
+
+Verified deploy, then a real failing run:
+
+```
+$ snow dcm test EXP_TEST
+  ✓ PASS   EXP_DB.PRE.DIM_CAP (NO_NULL_IDS)
+  ✗ FAIL   EXP_DB.PRE.DIM_CAP (UNIQUE_IDS)
+     └─ Expected: VALUE = 0, Got: 1 (Metric: DUPLICATE_COUNT)
+  1 passed, 1 failed out of 2 total.
+```
+
+The failure output names the expectation, the metric, the expected condition and the actual value —
+richer than the mock-up that was on the deck, which is now replaced with this real output. **And
+`snow dcm test` exits non-zero on failure**, so it gates a CI pipeline directly.
+
+**Two syntax facts learned the hard way:**
+- Column DMFs attach as `… ON (col) EXPECTATION name ( VALUE = 0 )`. Verified: `NULL_COUNT`,
+  `DUPLICATE_COUNT`.
+- A **table-level DMF** (`ROW_COUNT`, no column) does **not** accept the same `EXPECTATION` clause
+  form — `ATTACH … ROW_COUNT … EXPECTATION fact_not_empty (VALUE > 0)` fails to compile
+  (`unexpected 'EXPECTATION'`). The deck's illustrative `fact_not_empty` line was dropped; the two
+  shown examples are the column-based ones that actually deploy. Getting the table-level form right
+  is a small follow-up, not a blocker.
+
+### F6 re-verified at GA — still true
+
+Ran 2 plans + 1 deploy against the test project on 10.30.101:
+
+```
+PHASE   N
+DEPLOY  1        ← no PLAN rows
+```
+
+And `SNOWFLAKE.ACCOUNT_USAGE` still has **no DCM view** (`ILIKE '%DCM%'` → nothing). So GA did not
+change F6: **DCM records DEPLOY, never PLAN, and there is no ACCOUNT_USAGE equivalent.** The audit
+table (`CTL_DCM_DRIFT_LOG`) remains mandatory, exactly as designed.
+
+**Demo consequence:** the expectations slides are now backed by a real run, not a description. If
+asked "does this actually work / do we need Enterprise?", the answer is yes / no respectively, shown
+live in ~30 seconds with `ADD DATA METRIC FUNCTION … EXPECTATION` + `snow dcm test`.

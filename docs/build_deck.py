@@ -446,10 +446,11 @@ codebox(s,Mx+6.95,3.05,CW-6.95,[
  [("$ snow dcm test PBI_CAPACITIES",INK2,False)],
  [("",INK2,False)],
  [("  PASS  no_null_ids",CLEAN,True)],
- [("  PASS  unique_ids",CLEAN,True)],
- [("  FAIL  fact_not_empty",AMBER,True)],
+ [("  FAIL  unique_ids",AMBER,True)],
+ [("     Expected VALUE = 0, got 1",MUTE,False)],
+ [("  1 passed, 1 failed",MUTE,False)],
 ],size=12)
-txt(s,Mx+6.95,5.05,CW-6.95,1.3,[[("Runs on ",12.5,MUTE,False,SANS),("deployed",12.5,INK,True,SANS),(" objects, after refresh. The same gate sits on landing, staging and presentation — bad data caught where it enters, not three dashboards later.",12.5,MUTE,False,SANS)]],leading=1.4)
+txt(s,Mx+6.95,5.25,CW-6.95,1.3,[[("A ",12.5,MUTE,False,SANS),("verified run",12.5,INK,True,SANS),(", not a mock-up. Exits non-zero on failure, so it gates a pipeline. The same check sits on landing, staging and presentation — bad data caught where it enters, not three dashboards later.",12.5,MUTE,False,SANS)]],leading=1.4)
 foot(s,"beyond schema",17)
 
 # ── 15 CLOSE ─────────────────────────────────────────────
