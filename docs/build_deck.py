@@ -71,9 +71,10 @@ def foot(s,label,n,dark=False):
     txt(s,Mx,H-0.86,5,0.3,[[(label.upper(),9.5,c,False,MONO)]])
     txt(s,W-Mx-2.4,H-0.86,2.4,0.3,[[(f"{n:02d}",9.5,(RGBColor(0xC4,0xCE,0xD5) if dark else INK2),True,MONO),(f" / 15",9.5,c,False,MONO)]],align=PP_ALIGN.RIGHT)
 
-def title(s,parts,y=1.5,size=33):
+def title(s,parts,y=1.5,size=33,x=None,w=None):
     # parts: list of (text,color) segments on possibly one line
-    tb=s.shapes.add_textbox(Inches(Mx),Inches(y),Inches(CW),Inches(1.6)); tf=tb.text_frame
+    x=Mx if x is None else x; w=CW if w is None else w
+    tb=s.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(1.6)); tf=tb.text_frame
     tf.word_wrap=True; p=tf.paragraphs[0]; p.line_spacing=1.02
     for (t,c) in parts:
         r=p.add_run(); r.text=t; r.font.size=Pt(size); r.font.bold=True; r.font.name=SANS; r.font.color.rgb=c
@@ -132,15 +133,31 @@ foot(s,"schema drift, caught",1,dark=True)
 s=slide(); kicker(s,"the problem")
 title(s,[("Our pipelines cannot ",INK),("see",AMBER),(" the database",INK)])
 txt(s,Mx,2.5,CW,0.7,[[("70 ",15,INK,True,SANS),("CREATE TABLE IF NOT EXISTS",13.5,INK2,False,MONO),(" statements across 8 pipeline files. Against a table that already exists, that statement does nothing — and cannot look inside.",15,MUTE,False,SANS)]],leading=1.4)
-ry=3.55
-node(s,Mx,ry,3.0,1.5,"1 · created",None); 
-txt(s,Mx+0.2,ry+0.55,2.7,0.9,[[("ID     VARCHAR(36)",11.5,MUTE,False,MONO)],[("NAME   VARCHAR(200)",11.5,MUTE,False,MONO)]],sp=3)
-node(s,Mx+3.55,ry,3.0,1.5,"2 · altered by hand",None)
-txt(s,Mx+3.75,ry+0.5,2.7,1.0,[[("ID     VARCHAR(36)",11.5,MUTE,False,MONO)],[("NAME   VARCHAR(200)",11.5,MUTE,False,MONO)],[("SALARY VARCHAR(100)",11.5,AMBER,True,MONO)]],sp=3)
-node(s,Mx+7.1,ry,3.0,1.5,"3 · re-run DDL",None)
-txt(s,Mx+7.3,ry+0.5,2.7,1.0,[[('"already exists,',11.5,CLEAN,False,MONO)],[(' statement succeeded"',11.5,CLEAN,False,MONO)],[("SALARY still there",11.5,AMBER,True,MONO)]],sp=3)
-arrow(s,Mx+3.05,ry+0.75,Mx+3.5,ry+0.75); arrow(s,Mx+6.6,ry+0.75,Mx+7.05,ry+0.75)
-txt(s,Mx,ry+1.75,CW,0.8,[[('Snowflake is honest — it says it did nothing. The defect is that ',13,MUTE,False,SANS),("“did nothing” counts as success",13,INK,True,SANS),(", and nothing compares the table to the declaration. It stays invisible because it is harmless.",13,MUTE,False,SANS)]],leading=1.4)
+
+def stepbox(x, y, w, h, header, lines):
+    """titled box: header at top, mono lines stacked below — no overlap."""
+    box(s,x,y,w,h,WHITE,LINE2)
+    txt(s,x+0.22,y+0.16,w-0.4,0.32,[[(header,13,INK,True,MONO)]])
+    box(s,x+0.22,y+0.52,w-0.44,0.014,LINE)          # divider under header
+    for i,(t,c,b) in enumerate(lines):
+        txt(s,x+0.22,y+0.66+i*0.28,w-0.4,0.3,[[(t,11.5,c,b,MONO)]])
+
+ry=3.55; bw=3.15; gap=0.55; bh=1.85
+stepbox(Mx, ry, bw, bh, "1 · created", [
+    ("ID    VARCHAR(36)",  MUTE, False),
+    ("NAME  VARCHAR(200)", MUTE, False)])
+stepbox(Mx+bw+gap, ry, bw, bh, "2 · altered by hand", [
+    ("ID    VARCHAR(36)",  MUTE, False),
+    ("NAME  VARCHAR(200)", MUTE, False),
+    ("SALARY VARCHAR(100)",AMBER, True)])
+stepbox(Mx+2*(bw+gap), ry, bw, bh, "3 · re-run DDL", [
+    ('"already exists,',   CLEAN, False),
+    (' statement succeeded"',CLEAN, False),
+    ("SALARY still there", AMBER, True)])
+arrow(s,Mx+bw,ry+bh/2,Mx+bw+gap,ry+bh/2)
+arrow(s,Mx+2*bw+gap,ry+bh/2,Mx+2*(bw+gap),ry+bh/2)
+
+txt(s,Mx,ry+bh+0.25,CW,0.8,[[('Snowflake is honest — it says it did nothing. The defect is that ',13,MUTE,False,SANS),("“did nothing” counts as success",13,INK,True,SANS),(", and nothing compares the table to the declaration. It stays invisible because it is harmless.",13,MUTE,False,SANS)]],leading=1.4)
 foot(s,"the problem",2)
 
 # ── 3 GUARANTEES ─────────────────────────────────────────
@@ -257,7 +274,7 @@ arrow(s,Mx+1.7,3.6,Mx+1.0,4.48); txt(s,Mx+0.7,3.95,0.9,0.3,[[("FETCH",9.5,MUTE,F
 arrow(s,Mx+2.6,3.6,Mx+3.5,4.48); txt(s,Mx+3.5,3.95,0.9,0.3,[[("Pull",9.5,MUTE,False,MONO)]])
 txt(s,Mx+0.2,5.75,5.2,0.4,[[("siblings — not parent & child",10.5,FAINT,False,MONO)]],align=PP_ALIGN.CENTER)
 tx=Mx+6.0
-title(s,[("Three copies.",INK)],y=2.55,size=30); title(s,[("All can be ",INK),("stale",AMBER),(".",INK)],y=3.3,size=30)
+title(s,[("Three copies.",INK)],y=2.55,size=30,x=tx,w=CW-6.0); title(s,[("All can be ",INK),("stale",AMBER),(".",INK)],y=3.3,size=30,x=tx,w=CW-6.0)
 bullets(s,tx,4.25,CW-6.0,[
  ("A GIT REPOSITORY is a snapshot, not a live link — FETCH or it is stale",MUTE),
  ("A workspace lives in your personal database; a scheduled task cannot read it",MUTE),
@@ -315,11 +332,12 @@ arrow(s,Mx+1.3,4.6,Mx+0.95,5.33); txt(s,Mx+0.55,4.9,0.7,0.3,[[("empty",9,CLEAN,F
 arrow(s,Mx+2.4,4.6,Mx+3.0,5.33); txt(s,Mx+2.85,4.9,0.6,0.3,[[("not",9,DRIFT,False,MONO)]])
 # right text
 tx=Mx+6.2
-title(s,[("Three verdicts,",INK)],y=2.6,size=30); title(s,[("not two",INK)],y=3.35,size=30)
+title(s,[("Three verdicts,",INK)],y=2.6,size=30,x=tx,w=CW-6.2); title(s,[("not two",INK)],y=3.35,size=30,x=tx,w=CW-6.2)
 txt(s,tx,4.25,CW-6.2,0.6,[[("A two-state monitor — “changeset empty or not” — reads the worst case as a broken job.",14,MUTE,False,SANS)]],leading=1.35)
-box(s,tx,5.1,CW-6.2,1.15,WHITE,LINE); box(s,tx,5.1,0.045,1.15,AMBER)
-txt(s,tx+0.3,5.28,CW-6.5,0.5,[[("45",26,AMBER,True,MONO),(" of 53",14,FAINT,False,SANS),(" columns are not the last in their table.",14,INK2,False,SANS)]])
-txt(s,tx+0.3,5.75,CW-6.5,0.4,[[("Restoring one mid-list is a reorder Snowflake can't do — so ERROR is the common case.",12.5,MUTE,False,SANS)]],leading=1.25)
+box(s,tx,5.05,CW-6.2,1.4,WHITE,LINE); box(s,tx,5.05,0.045,1.4,AMBER)
+txt(s,tx+0.32,5.24,1.3,0.6,[[("45",30,AMBER,True,MONO)]])
+txt(s,tx+1.5,5.34,CW-7.7,0.5,[[("of 53",13,FAINT,False,SANS),(" columns are not the",13,INK2,False,SANS)],[("last column in their table.",13,INK2,False,SANS)]],sp=1,leading=1.15)
+txt(s,tx+0.32,6.0,CW-6.6,0.4,[[("Restoring one mid-list is a reorder Snowflake can't do — ERROR is the common case.",12,MUTE,False,SANS)]],leading=1.2)
 foot(s,"verdicts",11)
 
 # ── 12 RETURNS + AUDIT ───────────────────────────────────
@@ -399,3 +417,36 @@ foot(s,"schema drift, caught",15)
 
 prs.save("DCM_Presentation.pptx")
 print("saved 15 slides")
+
+# ── layout self-check (run after save) ───────────────────────────────
+def _validate(path="DCM_Presentation.pptx"):
+    from pptx import Presentation as _P
+    from pptx.enum.shapes import MSO_SHAPE_TYPE as _T
+    import math as _m
+    p=_P(path); EMU=914400; SW=p.slide_width; SH=p.slide_height; issues=0
+    def er(sh):
+        L=sh.left/EMU;Tp=sh.top/EMU;W=(sh.width or 0)/EMU;h=0;mw=0
+        for pa in sh.text_frame.paragraphs:
+            rs=pa.runs
+            if not rs: continue
+            t="".join(r.text for r in rs); f=max([(r.font.size.pt if r.font.size else 12) for r in rs]+[12])
+            cpl=max(1,W*72/(0.52*f)); ln=max(1,_m.ceil(len(t)/cpl)); h+=ln*f*1.32/72; mw=max(mw,min(W,len(t)*0.52*f/72))
+        return (L,Tp,L+mw,Tp+h)
+    def ar(r):return max(0,r[2]-r[0])*max(0,r[3]-r[1])
+    def it(a,b):return ar((max(a[0],b[0]),max(a[1],b[1]),min(a[2],b[2]),min(a[3],b[3])))
+    for i,s in enumerate(p.slides,1):
+        tb=[sh for sh in s.shapes if sh.has_text_frame and sh.shape_type==_T.TEXT_BOX and sh.text_frame.text.strip()]
+        R=[er(sh) for sh in tb]
+        for a in range(len(R)):
+            for b in range(a+1,len(R)):
+                o=it(R[a],R[b]); sm=min(ar(R[a]),ar(R[b]))
+                if sm>0.02 and o/sm>0.30: issues+=1; print(f"  OVERLAP slide {i}: {tb[a].text_frame.text[:20]!r} x {tb[b].text_frame.text[:20]!r}")
+        for sh in s.shapes:
+            if sh.left is None: continue
+            if sh.left<-9000 or sh.top<-9000 or sh.left+(sh.width or 0)>SW+9000 or sh.top+(sh.height or 0)>SH+9000:
+                issues+=1; print(f"  OFF-CANVAS slide {i}")
+    print("layout check:", "CLEAN" if issues==0 else f"{issues} ISSUES")
+    return issues
+
+if __name__=="__main__":
+    _validate()
