@@ -1,0 +1,278 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Speaker Companion</title>
+<style>
+  @page { size: A4; margin: 14mm 15mm 16mm; }
+  :root{
+    --ink:#25313A; --ink2:#36454F; --muted:#5f6f7c; --faint:#8A9BA8;
+    --line:#D3D8DD; --panel:#F2F4F6; --accent:#B26B12; --accent2:#8A5210;
+    --amberbg:#FBF1E1; --amberline:#E0A24A; --green:#4B6650; --red:#8C3B2E;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{font-family:var(--sans); color:var(--ink); font-size:10.5pt; line-height:1.5; margin:0;
+       -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  .cover{padding:6mm 0 4mm; border-bottom:2px solid var(--ink2); margin-bottom:6mm;}
+  .cover h1{font-size:24pt; font-weight:800; letter-spacing:-.02em; margin:0 0 2mm;}
+  .cover .sub{color:var(--muted); font-size:11pt; max-width:150mm;}
+  .how{background:var(--panel); border-left:3px solid var(--accent); padding:3mm 4mm; margin:4mm 0 0; font-size:9.5pt;}
+  .how b{color:var(--accent2);}
+  .legend{display:flex; gap:6mm; margin-top:2mm; font-size:9pt; color:var(--muted);}
+  .sw{display:inline-block; width:9pt; height:9pt; border-radius:2px; vertical-align:middle; margin-right:2pt;}
+
+  .slide{ break-inside:avoid; page-break-inside:avoid; margin:0 0 6mm; padding-top:2mm; }
+  .shead{display:flex; align-items:baseline; gap:3mm; border-bottom:1px solid var(--line); padding-bottom:1.5mm; margin-bottom:2.5mm;}
+  .snum{font-family:var(--mono); font-weight:700; color:#fff; background:var(--ink2); padding:1pt 5pt; border-radius:3px; font-size:9pt;}
+  .stitle{font-size:13pt; font-weight:750; letter-spacing:-.01em;}
+  .skick{font-family:var(--mono); font-size:8pt; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-left:auto;}
+
+  .say{background:var(--amberbg); border-left:4px solid var(--accent); border-radius:0 3px 3px 0;
+       padding:3mm 4mm; margin:0 0 2.5mm;}
+  .say .lbl{font-family:var(--mono); font-size:7.5pt; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent2); font-weight:700; display:block; margin-bottom:1.5mm;}
+  .say p{margin:0 0 2mm; color:#3a2a12; font-size:11pt; line-height:1.55;}
+  .say p:last-child{margin-bottom:0;}
+  .say .beat{color:var(--accent2); font-weight:700; font-style:italic;}
+
+  .detail{padding:0 1mm;}
+  .detail .lbl{font-family:var(--mono); font-size:7.5pt; letter-spacing:.14em; text-transform:uppercase;
+               color:var(--faint); font-weight:700; display:block; margin-bottom:1mm;}
+  .detail ul{margin:0 0 1mm; padding-left:5mm;}
+  .detail li{margin:0 0 1mm; color:var(--muted); font-size:9.5pt; line-height:1.45;}
+  .detail li b{color:var(--ink);}
+  code{font-family:var(--mono); font-size:8.8pt; background:var(--panel); padding:.5pt 3pt; border-radius:2px; color:var(--ink2);}
+  .num{font-variant-numeric:tabular-nums;}
+  h2.part{font-size:9pt; font-family:var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+          border-top:1px solid var(--line); padding-top:3mm; margin:6mm 0 2mm;}
+</style></head><body>
+
+<div class="cover">
+  <h1>Speaker Companion</h1>
+  <div class="sub">Schema drift, caught — the DCM demo. One entry per slide. Read the <b style="color:var(--accent2)">amber</b> aloud; the grey is your backup for questions.</div>
+  <div class="how">
+    <b>How to use this.</b> Glance down, read the amber <b>SAY</b> lines in your own voice — they're written to be spoken, not recited. The <b>(beat)</b> markers are where to pause or click. The grey <b>DETAIL</b> is what to reach for if someone asks — numbers, the “why”, the sharp follow-ups. You will not need most of it; it's there so you're never caught out.
+    <div class="legend">
+      <span><span class="sw" style="background:var(--amberbg);border:1px solid var(--amberline)"></span> say out loud</span>
+      <span><span class="sw" style="background:var(--panel);border:1px solid var(--line)"></span> backup / if asked</span>
+    </div>
+  </div>
+</div>
+
+<!-- 1 -->
+<div class="slide">
+  <div class="shead"><span class="snum">01</span><span class="stitle">The database that couldn't see itself</span><span class="skick">title</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>This is about a gap in how we manage our Snowflake schema — and a native way to close it.</p>
+    <p>The one-line version: our repo can always <b>build</b> the database. Until now it could never prove the database still <b>matches</b> it. <span class="beat">(beat)</span> I'll show you what that gap costs, and then I'll close it live.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“DCM” = <b>Declarative Change Management</b> Projects, a Snowflake feature that went <b>GA on 7 Aug 2026</b>.</li>
+    <li>This is a proof of concept in a personal account — 8 tables, 53 columns, no production data.</li></ul>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="slide">
+  <div class="shead"><span class="snum">02</span><span class="stitle">Our pipelines cannot see the database</span><span class="skick">the problem</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Our pipelines create tables with <code>CREATE TABLE IF NOT EXISTS</code> — 70 of these, across 8 files.</p>
+    <p>Here's the catch. If the table already exists, that statement does <b>nothing</b>. It doesn't look inside. <span class="beat">(beat)</span> So someone adds a column by hand on a Tuesday, the pipeline re-runs, and Snowflake says “already exists, statement succeeded.” Green. Honest. And completely blind to the extra column.</p>
+    <p>No data is harmed, nothing breaks — which is exactly why it stays invisible for months.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“Does it recreate the table each run?” — <b>No.</b> First run creates; every run after is a no-op. It exists so a fresh environment builds.</li>
+    <li>Snowflake isn't lying — it tells you it did nothing. The defect is that <b>“did nothing” counts as success</b>, and nothing compares the table to what we declared.</li></ul>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="slide">
+  <div class="shead"><span class="snum">03</span><span class="stitle">Only one of these was ever real</span><span class="skick">two guarantees</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Two different promises here. “The repo can build the database” — always true. “The database still matches the repo” — that was never true, and nothing could tell us the difference.</p>
+    <p><span class="beat">(beat)</span> For context: a dashboard in our estate sat frozen for <b>seven months</b> behind a check that looked like a check and never checked anything. Different bug — but the same shape.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>By “repo” here I mean the <b>Matillion pipeline repo</b> that holds the 70 DDL statements — not the DCM repo.</li>
+    <li>The dashboard freeze was a trailing-comma syntax error hidden by an alert-then-succeed pattern. Recorded in our findings.</li></ul>
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="slide">
+  <div class="shead"><span class="snum">04</span><span class="stitle">Declare the state. Snowflake finds the difference.</span><span class="skick">what dcm is</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>DCM Projects is native to Snowflake — no external tool, no state file. It went GA a few weeks ago.</p>
+    <p>Instead of writing instructions, you <b>declare</b> what a table should look like — <code>DEFINE</code>, not <code>CREATE</code> — and Snowflake works out the difference. <b>PLAN</b> is a dry run that changes nothing. <b>DEPLOY</b> applies it.</p>
+    <p><span class="beat">(beat)</span> And if you delete a table's definition, the next deploy drops the table. The file <b>is</b> the source of truth.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“vs Terraform?” — Terraform suits account-level objects and keeps an external state file; DCM is native and stateless. Common practice is both.</li>
+    <li>Tables, views, tasks, roles, warehouses, schemas are all GA within DCM.</li></ul>
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="slide">
+  <div class="shead"><span class="snum">05</span><span class="stitle">The DDL stops living inside the ETL</span><span class="skick">infrastructure as code</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Today our DDL lives inside the ETL — it runs as a side effect of a data load. No review, no diff, and drift is invisible.</p>
+    <p>With DCM, the DDL lives in git, reviewed like any code, and the plan shows the impact before anything lands. <span class="beat">(beat)</span> The database stops being a place things quietly accumulate, and becomes a build output.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>One command rebuilds an entire environment from the repo — useful for onboarding and for standing up a fresh dev.</li></ul>
+  </div>
+</div>
+
+<!-- 6 -->
+<div class="slide">
+  <div class="shead"><span class="snum">06</span><span class="stitle">The layout is fixed, not a convention</span><span class="skick">project structure</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>The structure is fixed — definitions must sit under <code>sources/definitions</code>, or Snowflake simply won't read them.</p>
+    <p>The manifest says <b>where</b> to deploy and <b>what varies</b> between environments. That's the promotion story: the same files build dev and prod, and <code>env_suffix</code> — <code>_DEV</code> or <code>_PROD</code> — is the only difference. <span class="beat">(beat)</span> Promoting to prod is just pointing the same reviewed file at a different config. You never keep a second copy of the DDL.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“Promotion is pointing at a target” = same definition files, run with <code>USING CONFIGURATION PROD</code>, which appends <code>_PROD</code>. No copy of the scripts to drift apart.</li>
+    <li>The alternative everyone lives with: a separate prod copy of the DDL that slowly diverges until nobody can reproduce prod.</li></ul>
+  </div>
+</div>
+
+<!-- 7 -->
+<div class="slide">
+  <div class="shead"><span class="snum">07</span><span class="stitle">How it fits together</span><span class="skick">architecture</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Here's the whole thing. GitHub is the source of truth. Snowflake keeps its own clone. The DCM project deploys prod <b>from that clone</b> — from git, never from someone's laptop.</p>
+    <p>And every night at 5, a task runs <b>PLAN</b> against prod, logs the result, and emails us only if something's off. <span class="beat">(beat)</span> PLAN is automated because it only reads. DEPLOY is a human decision — because it drops columns to fix things.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>The clone is a <code>GIT REPOSITORY</code> object; it updates only on <code>FETCH</code>, which the nightly job runs before it plans.</li>
+    <li>The monitor watches <b>prod</b> — the thing that must match git.</li></ul>
+  </div>
+</div>
+
+<!-- 8 -->
+<div class="slide">
+  <div class="shead"><span class="snum">08</span><span class="stitle">Three copies. All can be stale.</span><span class="skick">three copies</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>One thing that trips everyone up: there are three copies of these files, and all three can be stale independently. GitHub, Snowflake's clone, and my personal workspace.</p>
+    <p>A clone is a snapshot — it knows nothing about a new commit until you <code>FETCH</code>. <span class="beat">(beat)</span> GitHub is authoritative. The other two are caches.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>A workspace lives in a per-user database — <code>SHOW GIT REPOSITORIES</code> won't even list it, and a scheduled task can't read it. That's why the account-level clone exists.</li></ul>
+  </div>
+</div>
+
+<!-- 9 -->
+<div class="slide">
+  <div class="shead"><span class="snum">09</span><span class="stitle">A change travels one direction only</span><span class="skick">one direction</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Changes only travel one way — from git, down to the database. A hand-made <code>ALTER</code> never flows back into the repo. There's no path back.</p>
+    <p><span class="beat">(beat)</span> That asymmetry is the entire reason drift detection has to exist. If everything went through git, you wouldn't need it.</p>
+  </div>
+</div>
+
+<!-- 10 -->
+<div class="slide">
+  <div class="shead"><span class="snum">10</span><span class="stitle">Dev fast. Prod from git.</span><span class="skick">how a developer ships</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>So how does a developer actually work? Dev is deployed straight from the workspace — fast, no gate. Prod is deployed <b>from git</b>, after review, with <code>USING CONFIGURATION PROD</code>.</p>
+    <p>Same files build both. And because prod comes from git, git and prod agree by construction — <span class="beat">(beat)</span> which is what keeps the nightly check honest. If I deployed prod from my laptop and pushed afterwards, the check would flag my own deliberate change as drift.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>Dev and prod are two databases in the <b>same account</b>, separated by <code>env_suffix</code>. No second account, no paid upgrade — just compute credits.</li>
+    <li>Real enterprises often split dev/prod across separate accounts — a target each. Same idea.</li></ul>
+  </div>
+</div>
+
+<!-- 11 -->
+<div class="slide">
+  <div class="shead"><span class="snum">11</span><span class="stitle">Three questions. Git answers two.</span><span class="skick">three diffs</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>This is the spine of the whole idea. Three questions.</p>
+    <p>What changed in the <b>definition</b>? — <code>git diff</code> answers that. What will change in the <b>database</b>? — the plan answers that. What changed <b>without going through either</b>? <span class="beat">(beat)</span> That third one — that's drift. And it's the one we have never been able to see.</p>
+  </div>
+</div>
+
+<!-- 12 -->
+<div class="slide">
+  <div class="shead"><span class="snum">12</span><span class="stitle">Three verdicts, not two</span><span class="skick">drift detection</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>The drift check has three verdicts, not two. <b>Clean</b> — matches the repo. <b>Drift</b> — someone changed something and it's revertible; the check names the exact column. And <b>Error</b> — the change can't be auto-reverted, and it may be hiding other drift.</p>
+    <p>Why three? <span class="beat">(beat)</span> Because 45 of our 53 columns aren't the last column in their table, and Snowflake can't reorder columns — so a dropped column usually produces Error, not Drift. A two-state monitor would read the worst case as a broken job.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>Un-revertible cases: dropping a non-last column, narrowing a VARCHAR, renaming. Recovery is unload → drop → redeploy → reload — planned maintenance, not a 3am fix.</li></ul>
+  </div>
+</div>
+
+<!-- 13 -->
+<div class="slide">
+  <div class="shead"><span class="snum">13</span><span class="stitle">It names the column · what Snowflake forgets</span><span class="skick">the record</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>When drift is found, the plan names the column, its type, and which way the fix goes — not just “this table differs.” That's the difference between an alert worth waking for and one people mute.</p>
+    <p>And here's a surprise: Snowflake records every <b>deploy</b>, but <b>no plans at all</b>. The drift check is the one thing it doesn't remember. <span class="beat">(beat)</span> So we keep our own log — which answers “when did this drift start,” the question you actually ask in an incident.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>Measured on the account: 7+ plans, 4 deploys → history shows 4 deploys, zero plans. No <code>ACCOUNT_USAGE</code> view either. Re-checked after GA — still true.</li></ul>
+  </div>
+</div>
+
+<!-- 14 -->
+<div class="slide">
+  <div class="shead"><span class="snum">14</span><span class="stitle">Thirteen findings. Four from deliberate sabotage.</span><span class="skick">findings</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>We found thirteen things, and four of them came from deliberately breaking it.</p>
+    <p>The verdict — yes, it detects hand-made drift, at column level. It records deploys but never plans, so an audit table is mandatory. Dropping a non-last column is un-revertible. And my favourite: <span class="beat">(beat)</span> our own monitor sat suspended for a day while its health view cheerfully reported “OK.”</p>
+    <p>Every failure we found was the same shape — something reporting success without checking what it claimed to check.</p>
+  </div>
+</div>
+
+<!-- 15 -->
+<div class="slide">
+  <div class="shead"><span class="snum">15</span><span class="stitle">What we'll demo</span><span class="skick">live · ~20 min</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Let me show you all of this live — about twenty minutes.</p>
+    <p>I'll build a project from nothing, push it to git, deploy dev and prod. Then <span class="beat">(beat)</span> I'll tamper with prod by hand — and we'll watch the check name the exact column, while GitHub shows nothing happened at all.</p>
+  </div>
+  <div class="detail"><span class="lbl">Order</span>
+    <ul><li>build → push → pull as an account clone → deploy dev, then prod from git → tamper prod → drift check → the un-revertible case.</li></ul>
+  </div>
+</div>
+
+<!-- 16 -->
+<div class="slide">
+  <div class="shead"><span class="snum">16</span><span class="stitle">Gate the data, not just the shape</span><span class="skick">beyond schema</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>One more thing, and it's the interesting part for us. This manages more than the <b>shape</b> of the tables.</p>
+    <p>The same declarative project can gate the <b>data</b> — quality checks declared right beside the schema. <span class="beat">(beat)</span> So it doesn't just prove the schema matches. It can prove the data passes.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>We haven't used this in the POC — it's the highest-value next step. Validated it works in a quick spike (next slide is a real run).</li></ul>
+  </div>
+</div>
+
+<!-- 17 -->
+<div class="slide">
+  <div class="shead"><span class="snum">17</span><span class="stitle">Quality gates, declared beside the schema</span><span class="skick">beyond schema · examples</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Here's what that looks like. You attach a data metric function — no null IDs, unique IDs — with an <b>expectation</b>. Then one command, <code>snow dcm test</code>, runs them all.</p>
+    <p>This is a real run: one passed, one failed, with the exact value it saw. <span class="beat">(beat)</span> And it exits non-zero on failure, so it gates a pipeline. Bad data caught where it enters — not three dashboards later.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked</span>
+    <ul><li>“Enterprise only?” — <b>No.</b> Verified working on Standard edition.</li>
+    <li>Left side of an expectation is always the keyword <code>VALUE</code>. No subqueries, casts or arithmetic — a check, not a query.</li></ul>
+  </div>
+</div>
+
+<!-- 18 -->
+<div class="slide">
+  <div class="shead"><span class="snum">18</span><span class="stitle">What it does not yet prove</span><span class="skick">honest close</span></div>
+  <div class="say"><span class="lbl">Say</span>
+    <p>Honestly: this is a proof of concept. One slice — eight tables, no data. Grants, tasks and streams we haven't exercised. But it proves the thing that matters.</p>
+    <p><span class="beat">(beat)</span> The database can tell us, every morning, whether it still matches the repo — and name the column when it doesn't. We'd start with scheduled PLAN, which is read-only and safe. Deploy stays a human decision.</p>
+  </div>
+  <div class="detail"><span class="lbl">If asked — next steps</span>
+    <ul><li>Widen past capacities; rehearse the un-revertible recovery on a table with data; explore the data-quality expectations for real.</li></ul>
+  </div>
+</div>
+
+</body></html>
