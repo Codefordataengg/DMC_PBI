@@ -121,9 +121,9 @@ y = title(s, "Our pipelines cannot see the database")
 tf = tb(s, M, y, CW, 0.6)
 para(tf, "64  CREATE TABLE IF NOT EXISTS  statements across 9 pipeline files.", 18, CHARCOAL, first=True)
 y += 0.72
-steps = [("1", "Pipeline creates the table", "as declared"),
+steps = [("1", "Pipeline creates the table", "first run only"),
          ("2", "Someone adds a column by hand", "a Tuesday afternoon, no ticket"),
-         ("3", "Pipeline runs the same DDL again", "\"Table successfully created\"")]
+         ("3", "Pipeline re-runs the same DDL", "\"already exists,\nstatement succeeded\"")]
 bw = (CW - 0.5) / 3
 for i, (n, t1, t2) in enumerate(steps):
     x = M + i*(bw+0.25)
@@ -136,13 +136,13 @@ for i, (n, t1, t2) in enumerate(steps):
     para(tf, t2, 13, SLATE)
 y += 2.1
 y = code(s, M, y, CW, [
-    "DESC TABLE CUSTOMER;",
+    "DESC TABLE CUSTOMER;        -- data intact, 2 rows, nothing dropped",
     "",
     "ID       VARCHAR(36)",
     "NAME     VARCHAR(200)",
-    "SALARY   VARCHAR(100)     <-- still there. Never inspected.",
+    "SALARY   VARCHAR(100)     <-- undeclared. Never inspected.",
 ])
-kicker(s, y + 0.28, "Green, successful, and a lie by omission.")
+kicker(s, y + 0.24, "It did nothing, said so honestly, and doing nothing counted as success.")
 
 # ---------------------------------------------------------------- 3 guarantees
 s = blank()

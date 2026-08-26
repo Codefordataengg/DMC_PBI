@@ -144,16 +144,29 @@ ALTER TABLE DEMO_SCRATCH.S.CUSTOMER ADD COLUMN SALARY VARCHAR(100);
 CREATE TABLE IF NOT EXISTS DEMO_SCRATCH.S.CUSTOMER (ID VARCHAR(36), NAME VARCHAR(200));
 ```
 
-**`Table CUSTOMER successfully created.`** — green, successful, and a lie by omission.
+Snowflake answers:
+
+```
+CUSTOMER already exists, statement succeeded.
+```
 
 ```sql
 DESC TABLE DEMO_SCRATCH.S.CUSTOMER;      -- three columns. SALARY is still there.
 DROP DATABASE DEMO_SCRATCH;
 ```
 
-> **Say:** "It succeeded without looking inside, because it cannot look inside. Multiply that
-> by **64 such statements across 9 pipeline files**. The repo can build the database. It can
-> never tell you the database still matches it."
+> **Say:** "Notice Snowflake is completely honest — it *tells* you it already exists and did
+> nothing. It isn't lying. The problem is that **doing nothing counts as success**, and nothing
+> ever compares the table to what we declared. The pipeline asks 'did the statement succeed?'
+> It never asks 'does this table match what I asked for?'
+>
+> And no data was harmed — nothing dropped, nothing recreated. That's exactly why it stays
+> invisible. Nothing breaks. There is nothing to notice.
+>
+> Now multiply that by **64 such statements across 9 pipeline files**."
+
+**If someone asks "so does it recreate the table every run?"** — no. First run creates it; every
+run after is a no-op. It exists so the pipeline works against an empty environment.
 
 ---
 

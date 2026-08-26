@@ -425,3 +425,43 @@ single manual invocation.
 path — a scheduled run finding real drift and successfully emailing — has still only been
 proven by manual call, never by the task itself. The remaining rehearsal is to leave a
 deliberate drift in place overnight and confirm the email arrives without anyone present.
+
+---
+
+## F12 — `CREATE TABLE IF NOT EXISTS` is honest about doing nothing (2026-08-26, verified)
+
+**A correction to how this project has been describing its own founding problem**, caught when
+the slide was questioned rather than by anything failing.
+
+The deck and run sheet both claimed the statement returns *"Table successfully created"* against
+an existing table, and called that "a lie by omission". Verified in Snowflake:
+
+```sql
+CREATE TABLE IF NOT EXISTS SCRATCH_MSG.S.CUSTOMER (ID VARCHAR(36), NAME VARCHAR(200));
+
+  status
+  CUSTOMER already exists, statement succeeded.
+```
+
+Rows before: 2. Rows after: 2. Columns after: `ID`, `NAME`, **`SALARY`** — the hand-added one,
+untouched.
+
+**So the framing was wrong in a way that mattered.** Snowflake is not deceptive. It states
+plainly that the object already exists and that it did nothing. Nothing is dropped, nothing is
+recreated, no data is at risk.
+
+**The accurate problem is narrower and sharper:**
+
+- The statement is a **create-if-missing safety net**, so a pipeline works against an empty
+  environment. First run creates; every run after is a no-op. That is correct behaviour.
+- The defect is that **"did nothing" is indistinguishable from "verified nothing"** to anything
+  downstream. The pipeline asks *did the statement succeed?* and never *does this table match
+  what I declared?*
+- **It stays invisible precisely because it is harmless.** No data loss, no failure, nothing to
+  notice. A destructive bug would have been found in a day.
+
+Corrected in `docs/build_deck.py`, `DEMO_RUNSHEET.md` §1 and `docs/PPT_PROMPT.md`.
+
+**The lesson is the same one as F8 and F9:** a claim repeated across three documents for a week
+was never tested, because it was about something everyone already "knew". The two-minute check
+was available the whole time.

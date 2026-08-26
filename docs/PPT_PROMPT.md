@@ -48,9 +48,13 @@ inspect the table. It cannot.
 Show the sequence as three steps:
 1. Table created by the pipeline
 2. Someone adds a column by hand on a Tuesday
-3. Pipeline re-runs → **"Table successfully created"** → the column is still there
+3. Pipeline re-runs the same DDL → **"already exists, statement succeeded"** → the column is
+   still there, data untouched
 
-Closing line: *Green, successful, and a lie by omission.*
+Closing line: *It did nothing, said so honestly, and doing nothing counted as success.*
+
+Note for the deck: `IF NOT EXISTS` destroys nothing — no data loss, no recreation. That is
+precisely why the drift stays invisible: nothing breaks, so there is nothing to notice.
 
 ### Slide 3 — Two guarantees
 Title: **Only one of these was ever real**

@@ -293,6 +293,7 @@ sequenceDiagram
 | F9 | The monitor never ran and the health view reported `OK` | Task state is now a health input |
 | F10 | Views work, report the SQL diff, share the reorder limit | Views are safer only in that reverting one loses no data |
 | F11 | Ran unattended two consecutive nights, ~30s per run | The schedule is proven, not asserted |
+| F12 | `IF NOT EXISTS` says "already exists, statement succeeded" | It is honest; the defect is that doing nothing reads as success |
 
 ---
 
