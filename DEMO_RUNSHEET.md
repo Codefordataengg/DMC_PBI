@@ -1,191 +1,140 @@
-# Demo run sheet — DCM and Git, the full round trip
+# Demo run sheet — DCM + Git, the full round trip with review
 
-**~51 min + questions. Short cut ~22 min, marked ⏩.**
+**~45 min + questions.** Follow it top to bottom. Everything runs in the personal account
+(`LV16268`). Nothing touches Snowy's `DEVELOP` or Matillion.
 
-Build a DCM project in Snowflake, push it to an empty GitHub repo, pull it back in as a
-Snowflake-managed clone, develop against it, ship the change through git, and catch someone
-tampering with the database in between.
-
-The audience sees a change travel the whole loop — twice — and sees what happens when
-something bypasses it.
-
-Runs in the personal account (`LV16268`). Nothing touches Snowy's `DEVELOP` or Matillion.
+> **The one sentence they should leave with:**
+> *"Our repo can build the database. It couldn't prove the database still matches it. That second
+> guarantee is what was missing — and here it is, every morning, naming the column when it drifts."*
 
 ---
 
-## The spine of the demo: three questions, three diffs
+## Names used everywhere in this run sheet
 
-Put this on a slide, or draw it. Everything below is an instance of it.
+Keep these exact — every command below depends on them.
+
+| Thing | Name |
+|---|---|
+| GitHub repo | `DCM_DEMO` — **private**, README only at the start |
+| Workspace | `dcm-demo` — created *From Git repository* |
+| Project folder (in the repo) | `capacities/` → repo path `branches/main/capacities/` |
+| DCM project object — dev | `DCM_ADMIN.PROJECTS.CAPACITIES_DEV` |
+| DCM project object — prod | `DCM_ADMIN.PROJECTS.CAPACITIES_PROD` |
+| Databases | `DEMO_PBI_DEV`, `DEMO_PBI_PROD` (built via `env_suffix`) |
+| Git repository object | `DCM_ADMIN.PROJECTS.DEMO_REPO` |
+| Feature branch | `add-fact-table` |
+
+**Two rules that drive the whole flow:**
+- **Dev is deployed from the workspace** (local files) — fast, no gate.
+- **Prod is deployed from git `main` only** — after a PR is merged. Snowflake never deploys prod from a branch or a laptop.
+- **One DCM project object per environment** (F16). Dev and prod cannot share one, or deploying prod drops the dev database.
+
+---
+
+## The spine: three questions, three diffs
+
+Put this on a slide or say it early, and echo it at the end.
 
 | Question | Answered by | Shown in |
 |---|---|---|
-| What changed in the **definition**? | `git diff` | §6 |
+| What changed in the **definition**? | `git diff` on the PR | §6 |
 | What will change in the **database**? | `DCM PLAN` | §7 |
-| What changed in the database **without going through git**? | drift check | §8 |
-
-> **Say early, and repeat at the end:** "Git tells you what someone *wrote*. The plan tells you
-> what will *happen*. Neither of those catches the third case — somebody changing the database
-> directly. That third one is what we've never been able to see."
+| What changed **without going through either**? | the drift check | §8 |
 
 ---
 
-## The sequence, on one screen
+# PRE-FLIGHT (do alone, ~10 min before anyone joins)
 
-```
-0.  Repo with a README                     ← no commits = no main branch, nothing to connect to
-1.  Workspaces → From Git repository        ← git connection happens HERE or never
-2.  + Add new → DCM Project (scaffold)
-3.  Manifest: DEV + PROD configs            § 2   env_suffix _DEV / _PROD
-4.  Author definitions with {{env_suffix}} — HOLD ONE PRE TABLE BACK
-5.  Workspace → Plan → Deploy → DEMO_PBI_DEV § 2   ← dev, fast, from the workspace
-6.  Commit → Push (branch → PR → merge main) § 3   ← git is now the source of truth
-7.  CREATE GIT REPOSITORY + FETCH            § 4   the account's own clone
-8.  Deploy PROD from git → DEMO_PBI_PROD     § 4   ← USING CONFIGURATION PROD, never the workspace
-9.  Change loop: edit → DEV → PR → PROD      § 5-7
-10. Tamper DEMO_PBI_PROD by hand → drift check § 8  ← the reveal
-```
+## A. Clean slate — remove everything from prior runs
 
-> **Steps 0 and 1 cannot be reordered.** A workspace can only be connected to git *at creation*.
-> Author first and there is no way to push — you start again.
+Keeps the secret and API integration; drops the demo databases, projects, git-repo object, and workspaces.
 
-> **The workflow this demonstrates — dev fast, prod from git.**
-> Dev is deployed straight from the workspace, so you iterate with no ceremony. Prod is deployed
-> *from git* — the same reviewed `main`, via `USING CONFIGURATION PROD` — **never from your
-> personal workspace**. That way prod always has a reviewed, reproducible origin, and the nightly
-> drift check (which reads git) never sees prod diverge for a reason nobody can trace.
->
-> Same account, two databases — `DEMO_PBI_DEV` and `DEMO_PBI_PROD`, separated by `env_suffix`.
-> No paid upgrade, no second account; just compute credits. *(Real enterprises often use separate
-> accounts for dev and prod — a target per account — but same-account + `env_suffix` is standard
-> for a demo and for single-account teams.)*
-
----
-
-## Contents
-
-| | Section | Min | |
-|---|---|---|---|
-| — | [Pre-flight](#pre-flight) | 15 | alone, before anyone joins |
-| 1 | [The problem, in 90 seconds](#1--the-problem-in-90-seconds) | 3 | ⏩ |
-| 2 | [Build it in Snowflake](#2--build-it-in-snowflake) | 8 | ⏩ |
-| 3 | [**Push the first commit**](#3--push-the-first-commit) | 4 | ⏩ |
-| 4 | [**The copy a machine can read**](#4--the-copy-a-machine-can-read) | 5 | ⏩ |
-| 5 | [Add the missing table](#5--add-the-missing-table) | 3 | ⏩ |
-| 6 | [**Diff one — what the code changed**](#6--diff-one-what-the-code-changed) | 3 | ⏩ |
-| 7 | [**Diff two — what the database will do**](#7--diff-two--what-the-database-will-do) | 4 | ⏩ |
-| 8 | [**Diff three — the reveal**](#8--diff-three--the-reveal) | 5 | ⏩ |
-| 9 | [Put it back](#9--put-it-back) | 2 | ⏩ |
-| 10 | [The one that surprises people](#10--the-one-that-surprises-people) | 4 | |
-| 11 | [The loop, and why prod ships from git](#11--the-loop-and-why-prod-ships-from-git) | 3 | |
-| 12 | [Every morning, unattended](#12--every-morning-unattended) | 4 | |
-| 13 | [Close honestly](#13--close-honestly) | 2 | ⏩ |
-| — | [If something breaks live](#if-something-breaks-live) | — | **read first** |
-
----
-
-## Pre-flight
-
-### A. Create an empty GitHub repo — do this first
-
-**`DCM_DEMO`, private, and tick "Add a README".**
-
-The README matters. A repo with **no commits has no `main` branch**, and both the workspace and
-`CREATE GIT REPOSITORY` need a branch to point at. One README file is enough to create it.
-
-You still get the opening shot in §3 — *"one README and nothing else"* — you just can't say
-the repo is literally empty.
-
-Use `Codefordataengg`. Your existing API integration is scoped to
-`https://github.com/Codefordataengg`, **not** to one repo — so a new repo needs no new secret
-and no new integration. Mention that in §2; it is a good detail.
-
-### B. Reset Snowflake
-
+**A1 — SQL (run as `ACCOUNTADMIN`):**
 ```sql
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE COMPUTE_WH;
 
-DROP DATABASE       IF EXISTS DEMO_PBI_DEV;
-DROP DATABASE       IF EXISTS DEMO_PBI_PROD;
-DROP DCM PROJECT    IF EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
+-- databases built by earlier runs
+DROP DATABASE IF EXISTS DEMO_PBI_DEV;
+DROP DATABASE IF EXISTS DEMO_PBI_PROD;
+DROP DATABASE IF EXISTS DEMO_PBI;          -- old un-suffixed one, if any
+
+-- DCM project objects (old single one + per-env)
+DROP DCM PROJECT IF EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
+DROP DCM PROJECT IF EXISTS DCM_ADMIN.PROJECTS.CAPACITIES_DEV;
+DROP DCM PROJECT IF EXISTS DCM_ADMIN.PROJECTS.CAPACITIES_PROD;
+
+-- the demo git-repository clone (NOT the real PBI_REPO)
 DROP GIT REPOSITORY IF EXISTS DCM_ADMIN.PROJECTS.DEMO_REPO;
 
-CREATE DATABASE IF NOT EXISTS DCM_ADMIN;
-CREATE SCHEMA   IF NOT EXISTS DCM_ADMIN.PROJECTS;
+-- confirm the clean state
+SHOW DATABASES LIKE 'DEMO_PBI%';           -- expect: no rows
+SHOW DCM PROJECTS IN SCHEMA DCM_ADMIN.PROJECTS;   -- expect: none of the above
 ```
 
-Leave the real `PBI_REPO`, `PBI_CAPACITIES` and the nightly task alone — §11 uses them.
+> **Do NOT drop:** `DCM_ADMIN`, the `PROJECTS` schema, the `GITHUB_PAT` secret, the
+> `GIT_API_CODEFORDATAENGG` integration, or `PBI_REPO` (that's the real project's clone). Those are
+> the plumbing you're keeping.
 
-**Also delete any leftover demo workspaces** (Projects → Workspaces). You will create two
-during the demo and it helps to start with none:
+**A2 — UI: delete the demo workspaces.** Projects → Workspaces → open the menu on any previous
+`dcm-demo` (or `DCM_DEMO`) workspace → **Delete**. Workspaces can't be dropped from SQL. Start with none.
 
-| Created in | Name it | Why it exists |
-|---|---|---|
-| §2 | `demo-authoring` | scaffolded from nothing, no git |
-| §4a | `demo-from-git` | created *from* the repo URL |
+## B. GitHub — reset the repo to a clean slate
 
-Naming them on creation avoids the muddle of two identical-looking workspaces on screen.
+`DCM_DEMO` must be **private** (workspaces can't push to a public repo) and contain **only a
+`README`** on `main`, so the "repo fills up" moment in §3 lands.
 
-### C. Checklist
+- If the repo has files from a prior run: delete the `capacities/` folder (and any stray `out/`,
+  `.gitignore`) on GitHub so `main` is just the README.
+- Confirm **Settings → General → Danger Zone** shows it as **Private**.
 
-- [ ] **Rehearse §2 and §5 once.** They are the only sections with real typing
-- [ ] Browser tabs, in order: **GitHub repo** · **Snowsight** · [findings artifact](https://claude.ai/code/artifact/e873f965-68d1-44c2-912b-c5cb41f2baa3)
-- [ ] Snowsight zoom **150%**
-- [ ] Account switcher reads **`LV16268`**
-- [ ] Warehouse resumed
-- [ ] GitHub token to hand — the workspace will ask when you first push
-- [ ] Find the **Changes** tab in the workspace before you're on stage — commit and push live there
+## C. Checklist
+
+- [ ] `snow`/workspace connection points at **`LV16268`** — not the Snowy tenant
+- [ ] **GitHub PAT** valid, `repo` scope (write), stored in the `GITHUB_PAT` secret
+- [ ] Snowsight zoom **150%**; warehouse `COMPUTE_WH` resumed
+- [ ] Browser tabs in order: **GitHub `DCM_DEMO`** · **Snowsight** · findings artifact
+- [ ] Email client open on `amitbhopte099@gmail.com` (for §12)
+- [ ] **Rehearse §2 and §5 once** — the only sections with real typing / branch work
 
 ---
 
+# THE DEMO
+
 ## 1 — The problem, in 90 seconds
 
-Before mentioning DCM or git at all.
+Before mentioning DCM at all.
 
 ```sql
 CREATE DATABASE DEMO_SCRATCH;
 CREATE SCHEMA DEMO_SCRATCH.S;
-
 CREATE TABLE IF NOT EXISTS DEMO_SCRATCH.S.CUSTOMER (ID VARCHAR(36), NAME VARCHAR(200));
-
 -- someone, on a Tuesday, without telling anyone:
 ALTER TABLE DEMO_SCRATCH.S.CUSTOMER ADD COLUMN SALARY VARCHAR(100);
-
 -- now re-run the pipeline's own DDL, exactly as written:
 CREATE TABLE IF NOT EXISTS DEMO_SCRATCH.S.CUSTOMER (ID VARCHAR(36), NAME VARCHAR(200));
 ```
 
-Snowflake answers:
-
-```
-CUSTOMER already exists, statement succeeded.
-```
+Result: **`CUSTOMER already exists, statement succeeded.`**
 
 ```sql
-DESC TABLE DEMO_SCRATCH.S.CUSTOMER;      -- three columns. SALARY is still there.
+DESC TABLE DEMO_SCRATCH.S.CUSTOMER;    -- three columns. SALARY is still there.
 DROP DATABASE DEMO_SCRATCH;
 ```
 
-> **Say:** "Notice Snowflake is completely honest — it *tells* you it already exists and did
-> nothing. It isn't lying. The problem is that **doing nothing counts as success**, and nothing
-> ever compares the table to what we declared. The pipeline asks 'did the statement succeed?'
-> It never asks 'does this table match what I asked for?'
->
-> And no data was harmed — nothing dropped, nothing recreated. That's exactly why it stays
-> invisible. Nothing breaks. There is nothing to notice.
->
-> Now multiply that by **70 such statements across 8 pipeline files**."
-
-**If someone asks "so does it recreate the table every run?"** — no. First run creates it; every
-run after is a no-op. It exists so the pipeline works against an empty environment.
+> **Say:** "It succeeded, and it's honest — it says it already exists and did nothing. The problem
+> is that *doing nothing counts as success*, and nothing compares the table to what we declared.
+> Multiply by **70 of these statements across 8 pipeline files**. The repo can build the database.
+> It can never tell you the database still matches it — and no data is harmed, which is exactly why
+> it stays invisible for months."
 
 ---
 
-## 2 — Build it in Snowflake
+## 2 — Build it in Snowflake, deploy DEV
 
-### Create a git-backed workspace — this order is not optional
+### 2a. Create the git-backed workspace — this order can't be changed
 
-**Snowsight → Projects → Workspaces → `From Git repository`.**
+**Projects → Workspaces → `From Git repository`.**
 
 | Field | Value |
 |---|---|
@@ -193,101 +142,64 @@ run after is a no-op. It exists so the pipeline works against an empty environme
 | API integration | `GIT_API_CODEFORDATAENGG` |
 | Authentication | Personal access token |
 | Credentials | `DCM_ADMIN.PROJECTS.GITHUB_PAT` |
+| Workspace name | `dcm-demo` |
 
-> ⚠️ **You cannot connect a workspace to git later.** Snowflake only offers the git connection
-> when the workspace is *created*. Author your files in the default `My Workspace` and there is
-> no way to push them — you would have to start again. This is the one ordering mistake in the
-> whole demo that cannot be recovered live.
+> ⚠️ **A workspace can only be connected to git at creation.** If you author first in a plain
+> workspace, there's no way to push. This step is non-negotiable and comes first.
 
-> **Say:** "No new credential, no new integration — the API integration is scoped to the whole
-> GitHub account, so a second repo just works."
+### 2b. Scaffold the project inside it
 
-The workspace opens showing the README, and a **Changes** tab at the top of the folder view.
-That tab is the git client: branch selector, commit, push.
+**`+ Add new` → DCM Project**, name it **`capacities`**. That creates `capacities/manifest.yml`
+and `capacities/sources/`.
 
-### Now scaffold the project inside it
+**Delete the scaffold samples** (you're not using them):
+`capacities/sources/definitions/examples.sql`, `jinja_demo.sql`, and `capacities/sources/macros/grants_macro.sql`.
 
-**`+ Add new` → DCM Project**, name it `DCM_DEMO`.
+### 2c. Add a `.gitignore` so `out/` never gets committed
 
-Snowflake scaffolds:
-
+`+ Add new → File` inside `capacities/`, name it **`.gitignore`**, contents:
 ```
-manifest.yml
-sources/definitions/  examples.sql, jinja_demo.sql   ← delete both
-sources/macros/       grants_macro.sql               ← keep
-.gitignore   README.md
+out/
+**/.DS_Store
 ```
+> `out/` is build output the Plan/Deploy buttons generate. If it's pushed, DCM reads the rendered
+> copy as a *second* set of definitions and the plan fails with a conflict. This `.gitignore` — added
+> **before** the first plan — prevents that. If `out/` ever shows in Changes, delete it before pushing.
 
-Scroll `examples.sql` without reading it aloud — point out it declares warehouses, dynamic
-tables, **roles and grants**, then delete it.
+### 2d. Write the manifest — two environments, two project objects
 
-### The manifest — walk all three blocks
-
-Open `manifest.yml`. The scaffold generates three blocks and **placeholders in two of them
-that will bite you**. Change what is marked.
-
+Open `capacities/manifest.yml`. Replace its contents with:
 ```yaml
-manifest_version: 2                       # schema version. Leave it.
+manifest_version: 2
 type: DCM_PROJECT
 
-default_target: DCM_DEV                   # which target runs when you don't say
+default_target: DCM_DEV
 
 targets:
   DCM_DEV:
     account_identifier: YVTSYHL-PP80681
-    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_DEV    # ← _DEV project
+    project_name: DCM_ADMIN.PROJECTS.CAPACITIES_DEV
     project_owner: ACCOUNTADMIN
     templating_config: DEV
-  DCM_PROD:                                                # ← ADD this target
+  DCM_PROD:
     account_identifier: YVTSYHL-PP80681
-    project_name: DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_PROD   # ← _PROD project
+    project_name: DCM_ADMIN.PROJECTS.CAPACITIES_PROD
     project_owner: ACCOUNTADMIN
     templating_config: PROD
 
 templating:
-  defaults:
-    project_owner_role: "ACCOUNTADMIN"    # ← CHANGE from "MY_ROLE"
-    wh_size: "SMALL"
   configurations:
-    DEV:
-      env_suffix: "_DEV"                  # ← CHANGE from "_MY_PROJECT_OBJECT"
-    PROD:                                 # ← ADD this whole block
-      env_suffix: "_PROD"
+    DEV:  { env_suffix: "_DEV" }
+    PROD: { env_suffix: "_PROD" }
 ```
 
-`default_target: DCM_DEV` means the workspace deploys with the **DEV** configuration, so its
-Deploy button builds `DEMO_PBI_DEV`. Prod comes later, from git, with `USING CONFIGURATION PROD`.
+> **Say (F16):** "One project object holds one environment. Dev and prod are separate projects —
+> `CAPACITIES_DEV` and `CAPACITIES_PROD` — or a prod deploy would drop the whole dev database. Same
+> files build both; the only difference is `env_suffix`."
 
-> **One project object per environment — this is not optional (F16).** A DCM project holds ONE
-> desired state. If dev and prod share a project object, deploying prod **drops the whole dev
-> database** (its objects read as "no longer declared"). So each target names its own project:
-> `…DEMO_CAPACITIES_DEV` and `…DEMO_CAPACITIES_PROD`. The workspace uses the `_DEV` one; the
-> git-sourced prod deploy targets the `_PROD` one.
+### 2e. Write the definitions — two tables, hold one back
 
-> **Say, pointing at each block:** "`targets` is *where* — which account, which project object.
-> `templating` is *what varies* — the values that differ between environments. And
-> `default_target` picks one when you don't name it."
-
-**Two changes matter, and say why out loud:**
-
-| Placeholder | Change to | If you don't |
-|---|---|---|
-| `env_suffix: "_MY_PROJECT_OBJECT"` | `"_DEV"` (and add a `PROD` config with `"_PROD"`) | The suffix is how one file builds two databases — leave the placeholder and objects land as `DEMO_PBI_MY_PROJECT_OBJECT` |
-| `project_owner_role: "MY_ROLE"` | `"ACCOUNTADMIN"` | The grants macro references a role that doesn't exist |
-
-> **Say:** "`env_suffix` is the whole promotion story in one line. The DEV config appends `_DEV`,
-> the PROD config appends `_PROD` — so the *same* definition files build two databases. I never
-> maintain two copies of the DDL; I point one reviewed file at a different configuration."
-
-**If `sources/definitions/` is empty** — you deleted the examples, which is right — the Output
-pane reads `Files: 0, Errors: 0`. That is not an error. It has nothing to analyse yet.
-
-Create `sources/definitions/10_capacities.sql`.
-
-> **Deliberately incomplete.** Two tables now; a third is held back for §5. Building
-> everything at once only ever shows creation — holding one back is what lets the audience see
-> a *change* travel through git later, which is the harder and more useful thing to demonstrate.
-
+Create `capacities/sources/definitions/10_capacities.sql`:
 ```sql
 DEFINE DATABASE DEMO_PBI{{env_suffix}}
     COMMENT = 'Power BI governance estate - demo';
@@ -315,97 +227,49 @@ DEFINE TABLE DEMO_PBI{{env_suffix}}.PRE.DIM_PBI_CAPACITIES (
     IS_CURRENT_FLAG   NUMBER(1,0)   DEFAULT 1
 );
 ```
+> **Say:** "`DEFINE`, not `CREATE` — a description, not an instruction. The `FACT` table is held
+> back on purpose; I'll add it later so you can watch a *change* travel through review to prod."
 
-> **Say:** "`DEFINE`, not `CREATE` — a description of what should be true, not an instruction.
-> And these types aren't invented; they came from `GET_DDL` against the real dev database."
+### 2f. Plan → Create → Deploy DEV
 
-### First Plan — expect a dialog
+Click **Plan** (bottom-right of the Output pane, target reads `DCM_DEV (default)`).
 
-The first time you click **Plan**, Snowsight will say:
+- First Plan shows **"Project does not exist"** → **Create**. This makes `CAPACITIES_DEV`. Expected.
+- Plan result: **6 entities — 5 create, 1 alter.** Then **Deploy** → builds `DEMO_PBI_DEV`.
 
-> **Project does not exist.** `DCM_ADMIN.PROJECTS.DEMO_CAPACITIES` doesn't exist. You can
-> create it now using this name and owner role `ACCOUNTADMIN` specified in `manifest.yml`.
-
-**Click Create.** This is expected, not an error — and it is worth a sentence rather than
-clicking past it.
-
-> **Say:** "Two different things share that name. The manifest *declares* the project should be
-> called `DEMO_CAPACITIES` — that's a line of YAML. The project object is the real thing in
-> Snowflake that holds deployment history. Snowflake just noticed the declaration had nothing
-> behind it and offered to fix it.
->
-> Which is the same shape as everything else today: something declared, something real, and a
-> check that the two agree."
-
-The equivalent in SQL, if you prefer to pre-create it:
-
-```sql
-CREATE DCM PROJECT IF NOT EXISTS DCM_ADMIN.PROJECTS.DEMO_CAPACITIES;
-```
-
-**Prerequisite:** the schema `DCM_ADMIN.PROJECTS` must already exist — pre-flight creates it.
-The dialog cannot create a missing schema, only the project.
-
-**Plan** → 6 entities, 5 create, 1 alter. **Deploy** — the workspace uses the DEV config, so this
-builds **`DEMO_PBI_DEV`**. Verify independently:
-
+Verify:
 ```sql
 SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
 FROM   DEMO_PBI_DEV.INFORMATION_SCHEMA.COLUMNS
 WHERE  TABLE_SCHEMA IN ('LND','PRE')
-GROUP  BY 1,2 ORDER BY 1,2;
+GROUP  BY 1,2 ORDER BY 1,2;               -- 2 tables
 ```
-
-> **Say:** "This is dev. I deployed it straight from my workspace — fast, no ceremony. Prod will
-> be different: it gets deployed from git, after review, and you'll see why."
-
-**Plan again → no changes.** Run it twice, second run does nothing.
+> **Say:** "That's dev — deployed straight from my workspace, fast, no gate. Prod is different:
+> it only ever comes from git, after review."
 
 ---
 
-## 3 — Push the first commit
+## 3 — Push the initial project to `main`
 
-**Switch to the GitHub tab.** One README. No SQL, no manifest, nothing you just built.
+**GitHub tab:** show `DCM_DEMO` — just a README.
 
-> **Say:** "Everything I've written so far lives in my workspace. It's mine — nobody can review
-> it, nobody can rebuild it, and if I lose it, it's gone."
+Workspace → **Changes** tab. You should see `capacities/manifest.yml`,
+`capacities/sources/definitions/10_capacities.sql`, `capacities/.gitignore` — **and no `out/`**
+(if `out/` appears, delete it first). Commit message `Initial capacities schema` → **Push**.
 
-Back in the workspace: **Changes** tab at the top of the folder view.
+**GitHub tab → refresh.** The repo now shows the `capacities/` project.
 
-1. Review the listed files — `manifest.yml`, `sources/definitions/10_capacities.sql`
-2. Commit message: `Initial capacities schema`
-3. **Push**
-
-> Snowflake shows the username and email it will commit with. Worth pointing at — these commits
-> are attributable, like any other.
-
-**Back to GitHub. Refresh.**
-
-> **Say:** "Same thing you just watched me build — now it's the team's. Reviewable, branchable,
-> restorable by anyone."
-
-Open `sources/definitions/10_capacities.sql` **on GitHub** and let them see it rendered there.
-The point is that this is ordinary code in an ordinary repo, not a Snowflake-flavoured special
-case.
+> **Say:** "Everything I built is now the team's — reviewable, rebuildable, versioned."
 
 ---
 
-## 4 — The copy a machine can read
+## 4 — Pull it back as a clone, deploy PROD from git
 
-> **Say:** "My workspace is connected to git, so I'm covered. Except I'm not — and this is the
-> distinction that catches people out."
-
-```sql
-SHOW GIT REPOSITORIES IN ACCOUNT;
-```
-
-**Expect: the workspace you are standing in does NOT appear.**
-
-> **Say:** "A workspace lives in a personal, per-user database. It exists for a human with a
-> browser open. A scheduled job at 5am has neither — so Snowflake needs a second copy that
-> belongs to the account rather than to me."
+The workspace is mine and per-user; a scheduled job needs an account-level copy.
 
 ```sql
+SHOW GIT REPOSITORIES IN ACCOUNT;    -- the workspace is NOT listed; it's personal
+
 CREATE GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO
     API_INTEGRATION = GIT_API_CODEFORDATAENGG
     GIT_CREDENTIALS = DCM_ADMIN.PROJECTS.GITHUB_PAT
@@ -413,71 +277,43 @@ CREATE GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO
 
 ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
 
-LS @DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/;
+LS @DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/;   -- manifest.yml + sources/, no out/
 ```
 
-Run `SHOW GIT REPOSITORIES IN ACCOUNT;` again — **now it appears.**
-
-Then the parity check — plan the **DEV** config from git against the dev database the workspace built:
-
+**Parity check** — plan the DEV config from git against the dev database the workspace built:
 ```sql
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_DEV
     PLAN USING CONFIGURATION DEV
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 ```
-
 **Expect: no changes.**
+> **Say:** "I built dev from my workspace; I'm now planning it from the account's own clone, a
+> completely different path — and it agrees. Same truth, two directions."
 
-> **Say:** "I built dev from my workspace. I'm now planning it from a completely different path —
-> the account's own clone, pulled from GitHub — and it agrees the database is already correct.
-> Same truth, two directions."
-
-### Now the point of the whole demo — deploy PROD from git
-
+**Now deploy PROD from git** — its own project object:
 ```sql
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES_PROD
+CREATE DCM PROJECT IF NOT EXISTS DCM_ADMIN.PROJECTS.CAPACITIES_PROD;
+
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
     DEPLOY AS "prod_release"
     USING CONFIGURATION PROD
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/DCM_DEMO/';
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 
-SELECT TABLE_SCHEMA, TABLE_NAME, COUNT(*) AS COLS
-FROM   DEMO_PBI_PROD.INFORMATION_SCHEMA.COLUMNS
-WHERE  TABLE_SCHEMA IN ('LND','PRE')
-GROUP  BY 1,2 ORDER BY 1,2;
+SHOW DATABASES LIKE 'DEMO_PBI%';         -- BOTH DEMO_PBI_DEV and DEMO_PBI_PROD now exist
 ```
-
-**Expect: `DEMO_PBI_PROD` built — same shape as dev, `_PROD` suffix.**
-
-> **Say — land this slowly:** "Prod was **not** deployed from my workspace. It came from the
-> reviewed `main` branch, via `USING CONFIGURATION PROD`. Same files that built dev — I copied
-> nothing. And because prod came from git, git and prod agree by construction. That is the entire
-> discipline: dev is where I work, git is what I ship from, prod is only ever a deploy *from git*."
-
-### Which is which
-
-| | Workspace | `GIT REPOSITORY` |
-|---|---|---|
-| Created by | UI: *From Git repository* | SQL: `CREATE GIT REPOSITORY` |
-| Lives in | your personal `USER$` database | a schema you choose |
-| Belongs to | **you** | the account |
-| Good for | editing, branching, committing | tasks, procedures, automation |
-| Path form | `snow://workspace/...` | `@DB.SCHEMA.REPO/branches/main/` |
-| Updates by | **Push / Pull** in the Changes tab | `ALTER ... FETCH` |
-| Survives you leaving | no | yes |
-
-> **Say:** "The workspace is where a person works. The repository object is what the machine
-> reads at five in the morning. Delete my workspace and the nightly check carries on. Delete
-> the repository object and it stops."
+> **Say — land it slowly:** "Prod was not deployed from my workspace. It came from the reviewed
+> `main`, via `USING CONFIGURATION PROD`, into its own project. Same files that built dev — I copied
+> nothing. And because prod comes from git, git and prod agree by construction."
 
 ---
 
-## 5 — Add the missing table
+## 5 — A change, on a branch (this is the review flow)
 
-> **Say:** "A real change now, not a new build. The presentation layer needs a fact table that
-> nobody wrote yesterday."
+> **Say:** "Now a real change — and this time it goes through review, the way a prod change should."
 
-In the workspace, append to `sources/definitions/10_capacities.sql`:
+**Workspace → Changes tab → branch selector → New branch → `add-fact-table`.**
 
+Append to `capacities/sources/definitions/10_capacities.sql`:
 ```sql
 DEFINE TABLE DEMO_PBI{{env_suffix}}.PRE.FACT_PBI_CAPACITY_OBSERVATION (
     OBSERVED_DATE     DATE          NOT NULL,
@@ -491,194 +327,148 @@ DEFINE TABLE DEMO_PBI{{env_suffix}}.PRE.FACT_PBI_CAPACITY_OBSERVATION (
 );
 ```
 
-**Changes** tab → message `Add capacity observation fact table` → **Push**.
+**Deploy DEV** from the workspace (still fast, still no gate) → adds the fact table to `DEMO_PBI_DEV`.
 
-> **Say:** "Straight to `main`, no review — this is a demo. I'll come back to where approval
-> would go."
+**Changes tab** → commit `Add capacity observation fact table` → **Push** (pushes the *branch*).
 
----
-
-## 6 — Diff one: what the code changed
-
-**GitHub tab.** Open the commit you just pushed.
-
-> **Say:** "This is the diff every engineer already knows. Green lines, a message, an author, a
-> timestamp. Nothing about it is Snowflake-specific — which is the point. Schema changes now
-> arrive the way application changes do, and they're reviewable by anyone who can read SQL."
-
-> **Say, and this answers the question you'll get anyway:** "There's no approval gate here. I
-> pushed straight to `main`. If you want review, it goes in exactly the place you'd expect —
-> branch protection and a pull request on this repo. DCM doesn't provide that and doesn't need
-> to; it's ordinary git."
-
-Then set up the next section:
-
-> **Say:** "But notice what this diff does *not* tell you. It says I added nine lines of SQL. It
-> does not tell you what happens to the database when that lands. Different question."
+> **Say:** "Dev already has the change — I deployed it straight from my branch. Prod hasn't seen it,
+> and won't, until it's reviewed."
 
 ---
 
-## 7 — Diff two: what the database will do
+## 6 — Diff one: the PR (review + approval)
 
-**In the workspace first:** **Changes** tab → **Pull**. (You just pushed, so nothing arrives —
-worth saying out loud, because the *next* pull is the one that matters.)
+**GitHub tab.** A banner offers the pushed branch → **Compare & pull request** → **Create pull request**.
 
-**Then the account's copy**, which is the path a scheduled job uses:
+- Open the PR. The **Files changed** tab shows the added `FACT_PBI_CAPACITY_OBSERVATION` — green lines.
+
+> **Say:** "This is the diff every engineer knows — and it's the approval gate. Nothing reaches
+> `main`, and therefore nothing reaches prod, without this review. In a real pipeline, a GitHub
+> Action runs `dcm plan` here and posts the exact changeset as a comment, so the reviewer sees what
+> will happen to the database before approving. That's Snowflake's own recommended CI/CD pattern."
+
+**Approve → Merge pull request → Confirm merge.** `main` now has the change.
+
+---
+
+## 7 — Diff two: deploy PROD from the merged `main`
 
 ```sql
-ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;
+ALTER GIT REPOSITORY DCM_ADMIN.PROJECTS.DEMO_REPO FETCH;   -- pull the merged main
 
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    PLAN FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
+    PLAN USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 ```
-
 **Expect: 1 entity to create — `FACT_PBI_CAPACITY_OBSERVATION`.**
+> **Say:** "The plan is the second diff: those lines of SQL become exactly one change — create one
+> table in prod. Visible before anything happens."
 
-> **Say:** "Nine lines of SQL in git became exactly one change to the database: create one
-> table. That's the second diff. Both are visible before anything happens — what was written,
-> and what it will do."
-
-Deploy the change — **dev first, then prod from git**, exactly as in real life:
-
+Deploy it:
 ```sql
--- prod: from the reviewed main, PROD config
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
     DEPLOY AS "add_fact_prod"
     USING CONFIGURATION PROD
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 
-SELECT COUNT(*) AS TABLES
-FROM   DEMO_PBI_PROD.INFORMATION_SCHEMA.TABLES
-WHERE  TABLE_SCHEMA IN ('LND','PRE');           -- now 3
+SELECT COUNT(*) AS TABLES FROM DEMO_PBI_PROD.INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA IN ('LND','PRE');       -- now 3
 ```
-
-*(Dev picked the change up when you pulled it into the workspace and deployed, or you can plan/
-deploy the DEV config from git the same way.)*
-
-> **Two copies, two updates.** The **Pull** button updated my workspace. `FETCH` updated the
-> account's clone — the one prod and the 5am check read. Miss the second and both are on
-> yesterday's repo.
-
-**The round trip is complete: workspace → git → prod.**
+> **The round trip is complete:** workspace → branch → PR → merged `main` → prod. Dev fast, prod reviewed.
 
 ---
 
 ## 8 — Diff three: the reveal
 
-**Slow down. This is the demo.**
-
-> **Say:** "Everything so far went through git. Now watch someone skip it."
+> **Say:** "Everything so far went through git. Now watch someone skip it — a hotfix straight on prod."
 
 ```sql
--- a "hotfix" applied straight to PROD, the way it really happens
 ALTER TABLE DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES
     ADD COLUMN QUICK_FIX_DONT_ASK VARCHAR(100);
 ```
 
-**Switch to the GitHub tab. Refresh it.**
-
-> **Say — this is the moment:** "Nothing. No commit, no PR, no diff. As far as git is
-> concerned, nothing happened. And every pipeline we run tonight will be green."
+**GitHub tab → refresh.** Nothing. No commit, no PR, no diff.
+> **Say:** "As far as git is concerned, nothing happened. And every pipeline tonight is green."
 
 **Back to Snowsight — drift-check prod against git:**
-
 ```sql
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
     PLAN USING CONFIGURATION PROD
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 ```
-
 **Expect an `ALTER TABLE`, and in the JSON:**
-
 ```
 columns: removed "QUICK_FIX_DONT_ASK"   datatype VARCHAR(100), nullable true
 ```
-
-> **Say:** "The column name, the datatype, and which direction the fix runs. Git couldn't see
-> this — there was no commit to see. This is the third diff, and it's the one we've never had."
+> **Say:** "The column name, the datatype, the direction of the fix. Git couldn't see this — there
+> was no commit. This is the third diff, and it's the one we've never had."
 
 ---
 
 ## 9 — Put it back
 
-Deploy prod from git — the reviewed `main` is the truth, so it drops the rogue column:
-
 ```sql
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
     DEPLOY USING CONFIGURATION PROD
-    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 ```
-
-> **Say, and do not skip it:** "Reverting that was a `DROP COLUMN`. If it had held data, that
-> data is gone. Which is why the scheduled job only ever runs `PLAN`. **Deploy is a decision a
-> person makes after reading a plan.** We never schedule it — and prod is reverted *from git*,
-> never by hand."
+> **Say, don't skip:** "Reverting that was a `DROP COLUMN`. If it held data, that data is gone —
+> which is why the scheduled job only ever runs `PLAN`. Deploy is a human decision, and prod is only
+> ever reverted from git, never by hand."
 
 ---
 
 ## 10 — The one that surprises people
 
+> **Say:** "You'd think dropping a column is the easy case. It's the hard one."
+
 ```sql
 -- REGION is column 5 of 8
 ALTER TABLE DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES DROP COLUMN REGION;
+
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
+    PLAN USING CONFIGURATION PROD
+    FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 ```
-
-Plan. **Expect an error, not a changeset:**
-
+**Expect an error, not a changeset:**
 ```
 Unsupported feature 'CREATE OR ALTER TABLE column add before end of column list'.
 ```
-
-> **Say:** "Snowflake can only *append* columns, so restoring `REGION` to position 5 is a
-> reorder — unsupported. This cannot be auto-reverted at all. And the plan didn't report drift,
-> it **failed** — so any other drift in that file went unchecked behind it.
->
-> In the real slice, **45 of 53 columns are not last in their table.** This is the common case,
-> not the edge case."
+> **Say:** "Snowflake can only *append* columns, so restoring `REGION` to position 5 is a reorder —
+> unsupported. This can't be auto-reverted, and the plan *failed*, so any other drift behind it went
+> unchecked. In the real slice, 45 of 53 columns aren't last — so this is the common case."
 
 Recover on screen:
-
 ```sql
 DROP TABLE DEMO_PBI_PROD.PRE.DIM_PBI_CAPACITIES;
-EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.DEMO_CAPACITIES
-    DEPLOY USING CONFIGURATION PROD FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/';
+EXECUTE DCM PROJECT DCM_ADMIN.PROJECTS.CAPACITIES_PROD
+    DEPLOY USING CONFIGURATION PROD FROM '@DCM_ADMIN.PROJECTS.DEMO_REPO/branches/main/capacities/';
 ```
-
-> **Say:** "Empty table, two steps. With data: unload, drop, redeploy, reload. Planned
-> maintenance, not a 3am fix."
+> **Say:** "Empty table, two steps. With data: unload, drop, redeploy, reload. Planned maintenance."
 
 ---
 
 ## 11 — The loop, and why prod ships from git
 
-By now you've shown the whole developer cycle. State it plainly as the takeaway:
-
+State the takeaway plainly:
 ```
-   edit in workspace  →  Deploy DEV      (fast, no ceremony — DEMO_PBI_DEV)
+   edit on a branch → Deploy DEV        (fast, from the workspace)
         │
-        └→  commit → push → PR → merge main     (git becomes the truth)
+        └→ push branch → PR → review → merge main     (the approval gate)
                  │
-                 └→  DEPLOY USING CONFIGURATION PROD  FROM '@repo/main/'   (DEMO_PBI_PROD)
+                 └→ DEPLOY USING CONFIGURATION PROD  FROM '@…/main/capacities/'   (prod, reviewed)
 ```
-
-> **Say:** "Three rules, and they're the whole discipline. **One** — dev is deployed from the
-> workspace, so I move fast. **Two** — nothing reaches prod except through git; prod is always a
-> deploy *from* the reviewed `main`, never from my laptop. **Three** — the same files build both;
-> `env_suffix` is the only difference, so I never keep two copies of the DDL that drift apart.
->
-> That last point is the honest version of 'promote to production' — you don't copy anything. You
-> point one reviewed definition at a different configuration."
-
-**Why the order matters — say it if asked.** If you deployed prod from the workspace and pushed to
-git *after*, then for that window git ≠ prod — and the nightly drift check, which reads git, would
-flag prod as drifted for a change you made deliberately. Deploying prod *from* git means git and
-prod agree by construction. Git-first isn't bureaucracy; it's what keeps the drift signal honest.
+> **Say:** "Three rules, the whole discipline. **One** — dev deploys from the workspace, so I move
+> fast. **Two** — nothing reaches prod except through a merged PR; prod is always a deploy *from*
+> `main`, never a laptop. **Three** — the same files build both; `env_suffix` is the only difference.
+> Deploying prod from git is what keeps the nightly drift check honest — git and prod agree by
+> construction, so any difference the check finds is real."
 
 ---
 
-## 12 — Every morning, unattended
+## 12 — Every morning, unattended (the real system)
 
-Switch to the **real** project.
+Switch to the **real** project (`PBI_CAPACITIES`), which has run nightly.
 
 ```sql
 SELECT * FROM DCM_ADMIN.AUDIT.V_DCM_MONITOR_HEALTH;
@@ -687,83 +477,70 @@ SELECT CHECK_ID, CHECKED_AT_UTC, VERDICT, ENTITIES_CHANGED, NOTIFIED
 FROM   DCM_ADMIN.AUDIT.CTL_DCM_DRIFT_LOG
 ORDER  BY CHECKED_AT_UTC DESC LIMIT 10;
 ```
+> **Say:** "05:00 UTC, every day. Fetch main, plan prod against it, log the result, email if it isn't
+> clean. `PLAN` only — never deploy."
 
-> **Say:** "05:00 UTC, every day. Fetch main, plan, log the result, email if it isn't clean.
-> `PLAN` only — never deploy."
-
-Then the finding that forced this design:
-
+Then the finding that forced the design:
 ```sql
 SELECT PHASE, COUNT(*) AS N
 FROM   TABLE(DCM_ADMIN.INFORMATION_SCHEMA.DCM_DEPLOYMENT_HISTORY(
              project_name => 'DCM_ADMIN.PROJECTS.PBI_CAPACITIES', result_limit => 100))
 GROUP  BY 1;
 ```
-
-> **Say:** "`DEPLOY` rows only. Snowflake keeps a complete immutable record of every
-> deployment — and records **no plans at all**. The drift check is the one operation it
-> forgets, which is awkward when drift detection is the whole point. So we keep our own log.
-> It answers *'when did this drift start?'* — the question that took seven months last time."
-
-Show the alert email, and — if you're willing, it lands well:
-
-> "The health view exists because we got it wrong. The task sat suspended for a day and it
-> cheerfully reported `OK`, because it measured whether the log was recent, not whether the job
-> was still running. Same mistake as `IF NOT EXISTS`."
+> **Say:** "`DEPLOY` rows only. Snowflake records every deployment and *no plans at all* — the drift
+> check is the one thing it forgets, which is awkward when drift detection is the whole point. So we
+> keep our own log. It answers *when did this drift start* — the question that took seven months last
+> time." Show the alert email.
 
 ---
 
-## 13 — Close honestly
+## 13 — Beyond schema: gate the data too
 
-> **Say:** "Three diffs. Git shows what someone wrote. The plan shows what will happen. The
-> drift check shows what happened *without* either — and that third one is what we've never
-> been able to see.
->
-> What this is: a proof of concept. 8 tables, no data, one slice, personal account. DCM
-> Projects reached **GA on 2026-08-07**. Grants, tasks and streams are untested *by us*. The un-revertible
-> recovery path has only been rehearsed on empty tables.
->
-> What it proves: the database can tell us every morning whether it still matches the repo, and
-> name the column when it doesn't."
+> **Say:** "One more. This manages more than the shape of the tables — the same project can gate the
+> data. You attach a quality check — no null IDs, unique IDs — beside the schema, and `snow dcm test`
+> runs them. A real run: one passes, one fails, with the exact value; it exits non-zero, so it gates
+> a pipeline. Bad data caught where it enters, not three dashboards later. Verified on Standard
+> edition — no Enterprise needed. We haven't used it yet; it's the natural next step."
 
 ---
 
-## If something breaks live
+## 14 — Close honestly
+
+> **Say:** "A proof of concept — 8 tables, no data, one slice. Grants, tasks and streams we haven't
+> exercised. But it proves the thing that matters: the database can tell us every morning whether it
+> still matches the repo, and name the column when it doesn't. We'd start with scheduled `PLAN` — it's
+> read-only and safe. Deploy stays a human decision, and prod only ships through a merged PR."
+
+Leave the findings artifact and the repo on screen for questions.
+
+---
+
+# IF SOMETHING BREAKS LIVE
 
 | Symptom | Cause | Do |
 |---|---|---|
-| Plan shows unexpected creates | Rehearsal objects left behind | `DROP DATABASE DEMO_PBI_DEV; DROP DATABASE DEMO_PBI_PROD;` then §2 |
-| Plan errors with file and line | Un-revertible drift from earlier | `DROP TABLE` the named table, Deploy |
-| `LS @...DEMO_REPO/...` empty | Clone stale, or pushed to a branch | `ALTER GIT REPOSITORY ... FETCH;` and check the branch |
-| Push from workspace rejected | Token expired | Skip §3's push; show the **real** repo instead and carry on |
-| *From Git repository* won't create | API integration or credential not selectable | Skip 4a, do 4b in SQL, and say the UI is a convenience over the same objects |
-| Workspace and account clone disagree | One was updated, the other wasn't | **Pull** in the workspace, `FETCH` for the clone. Narrate it — it is the same mistake twice |
-| **No Changes tab / no way to push** | Workspace was created without git — **cannot be fixed** | Create a new workspace *From Git repository*, re-create the two files there. Rehearse §2 so this never happens live |
-| Workspace creation fails on the repo | Repo has no commits, so no `main` branch | Add a README on GitHub, retry |
-| Loose `.sql` files in the tree | Earlier experiments outside the project folder | Delete them before demoing — DCM only reads `sources/definitions/`, but a cluttered tree is hard to narrate |
-| Objects appear as `DEMO_PBI_MY_PROJECT_OBJECT` | `env_suffix` placeholder left as scaffolded | Set DEV to `"_DEV"`, PROD to `"_PROD"`, re-plan |
-| `Files: 0, Errors: 0` in Output | `sources/definitions/` is empty | Expected before §2's definitions exist. Not an error |
-| Grants macro errors on a missing role | `project_owner_role` still `"MY_ROLE"` | Set it to `ACCOUNTADMIN`, or delete `sources/macros/` |
-| "Project does not exist" dialog | Normal on first Plan — the object hasn't been created yet | Click **Create**. Narrate it, don't apologise for it |
-| **Create** in that dialog fails | Schema `DCM_ADMIN.PROJECTS` missing | `CREATE SCHEMA DCM_ADMIN.PROJECTS;` then Plan again |
-| Plan from git disagrees with workspace | Forgot to `FETCH`, or wrong `USING CONFIGURATION` | `FETCH`; check DEV vs PROD config. **Good teaching moment — say so** |
-| Everything is wrong | — | `DROP DATABASE DEMO_PBI_DEV; DROP DATABASE DEMO_PBI_PROD;` → §2. Rebuild ≈ 30 seconds |
+| `manifest.yml not found in stage` | wrong `FROM` path | it's `…/branches/main/capacities/` — the project folder, not the repo root |
+| `Conflicting definition … already defined` | `out/` got pushed | delete `out/` in the workspace, push; re-`FETCH` |
+| Prod deploy drops the dev database | dev + prod share one project object (F16) | use `CAPACITIES_DEV` and `CAPACITIES_PROD` — separate objects |
+| Workspace won't push, "secret … not authorized" | repo is public, or token lacks write | make `DCM_DEMO` private; PAT needs `repo` scope |
+| Plan shows unexpected creates | rehearsal objects left | re-run Pre-flight A1, then §2 |
+| Plan errors on a file/line | un-revertible drift from earlier | `DROP TABLE` the named table, redeploy |
+| Everything is wrong | — | Pre-flight A1 (clean slate) → start at §2. Rebuild ≈ 1 min |
 
-**Golden rule:** never debug live. Say *"good example of why every run gets logged"*, show the
-log, move on. A failed step becomes a demonstration of the audit trail.
+**Golden rule:** never debug live. Say *"good example of why we log every run"*, show the log, move on.
 
 ---
 
-## Questions you will get
+# QUESTIONS YOU'LL GET
 
 | Question | Answer |
 |---|---|
-| "Why not just use git hooks / CI?" | You can, and Snowflake publishes GitHub Actions for it — plan on PR, deploy on merge. But CI only sees changes that go *through* CI. Drift is the case that doesn't. |
-| "Where's the approval step?" | Not in this demo — I pushed straight to `main`. Add it with branch protection and pull requests; it's ordinary git. The gate that *is* here is that `DEPLOY` is manual: someone reads a plan and decides. |
-| "Could you show a view instead of a table?" | Yes — and drift on a view reports the before/after `SELECT`, which is richer than a column list. Same reorder limitation as tables though. |
-| "Why not Terraform?" | Terraform suits account-level objects and keeps an external state file. DCM is native and stateless. Common practice is both. |
-| "Does this replace Matillion?" | No. Matillion moves data; this manages the shape of the tables it lands in. |
-| "Can it roll back?" | Not as a command — revert the commit and deploy. Git *is* the rollback mechanism. |
-| "Two people deploy at once?" | Untested. Genuine gap — say so. |
-| "What does it cost?" | Warehouse time. A plan over 8 tables takes about three seconds. |
-| "Point it at production today?" | It's GA now, so that's no longer a blocker — but `DEPLOY` drops columns, so scheduled `PLAN` (read-only) is still the safe first step. |
+| "Where's the approval?" | The **PR** (§6) — nothing reaches `main`/prod without review + merge. In CI, `dcm plan` posts the changeset to the PR automatically. |
+| "Why one project per environment?" | A DCM project holds one desired state; sharing it means a prod deploy drops dev (F16). Separate `_DEV`/`_PROD` projects, one per environment. |
+| "Why not just git hooks / CI?" | You can — Snowflake publishes GitHub Actions (plan-on-PR, deploy-on-merge). CI only sees changes that go *through* CI; drift is the case that doesn't. |
+| "Why not Terraform?" | Terraform for account objects + external state; DCM is native, stateless, in-database. Common practice is both. |
+| "Does this replace Matillion?" | No. Matillion moves data; DCM manages the shape of the tables it lands in. |
+| "Roll back?" | Revert the commit, deploy again. Git is the rollback mechanism. |
+| "Two people deploy at once?" | Untested — a genuine gap. |
+| "Cost?" | Warehouse time. A plan over 8 tables is ~3 seconds. |
+| "Production today?" | GA, so no blocker — but `DEPLOY` drops columns, so scheduled `PLAN` (read-only) is the safe first step. |
